@@ -36,6 +36,7 @@ subprocess.run([sys.executable, str(root / "scripts/licenses.py"), "--check"], c
 entries = [(binary, binary.name), (root / "README.md", "README.md"),
            (root / "LICENSE", "LICENSE"), (root / "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md")]
 entries += [(path, path.relative_to(root).as_posix()) for path in sorted((root / "third-party").rglob("*")) if path.is_file()]
+entries += [(path, path.relative_to(root).as_posix()) for path in sorted((root / "docs").rglob("*")) if path.is_file()]
 skill = root / ".agents/skills/github-work-inspector"
 entries += [(path, "skill/github-work-inspector/" + path.relative_to(skill).as_posix())
             for path in sorted(skill.rglob("*")) if path.is_file()]
