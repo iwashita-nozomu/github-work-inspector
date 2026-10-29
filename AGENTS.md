@@ -14,7 +14,9 @@ and commit DAG snapshots, issues, pull requests, and CI observations.
   credentials, or captured private repository data.
 - Keep the skill explicit-only. Installation may create managed user-level binary
   and skill files when requested; never overwrite unrelated files or auth settings.
-- License is undecided. Do not add a LICENSE without an explicit choice.
+- Original project code is MIT, Copyright (c) 2026 iwashita-nozomu. Preserve
+  third-party notices and include LICENSE, THIRD_PARTY_NOTICES.md, and third-party/
+  in every distributed archive. Do not relicense dependencies as project code.
 
 Run cargo fmt --check, cargo clippy --locked --all-targets -- -D warnings,
 cargo test --locked, and cargo build --locked --release. Tests must be offline;

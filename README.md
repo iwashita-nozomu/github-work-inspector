@@ -25,7 +25,8 @@ branch間で重複するcommitを統合し、各branchの取得範囲と打切�
 
 ## インストール / 更新 / 削除
 
-この非公開repoへの既存アクセス権と `gh` が必要です。バイナリ利用にRustは不要。
+本repoとReleaseはPublic、プロジェクトの自作部分はMITです。バイナリ利用にRustは不要。
+取得対象が非公開の場合は、その対象への既存アクセス権を持つ `gh` が必要です。
 [Releases](https://github.com/iwashita-nozomu/github-work-inspector/releases) からターゲットを選びます。
 Mac Apple Silicon: `aarch64-apple-darwin`、Linux x64: `x86_64-unknown-linux-gnu`、
 Windows x64: `x86_64-pc-windows-msvc`。公開済みassetが実在するものだけが配布対象です。
@@ -36,9 +37,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.2.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.2.0-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.2.0-aarch64-apple-darwin.tar.gz
+gh release download v0.2.1 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.2.1-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.2.1-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
@@ -144,6 +145,7 @@ cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --offline
 RUSTFLAGS="--remap-path-prefix=$PWD=." cargo build --release --locked
+python3 scripts/licenses.py --check
 python3 scripts/package.py --target aarch64-apple-darwin --binary target/release/github-work-inspector
 ```
 
@@ -153,7 +155,7 @@ python3 scripts/package.py --target aarch64-apple-darwin --binary target/release
 
 `.github/workflows/build.yml` は手動実行でLinux/Windowsをfmt・clippy・test・release build・
 offline smokeし、archiveとSHA256を1日保持のartifactへ出力。cacheは作りません。
-private CIの実行枠/課金を確認してから実行してください。保護設定は変更しません。
+このPublic repoの標準GitHub-hosted runnerを使用します。larger runner・有料オプションは使いません。保護設定は変更しません。
 releaseはworkflowから自動作成せず、検証済みartifactと実機確認済みMac archiveを
 同一commitのタグへ載せます。対応ターゲットと検証範囲は各Release説明が正となります。
 SHA256は破損検出用で第三者署名ではありません。Mac版はDeveloper ID署名・notarizeなしです。
@@ -164,4 +166,7 @@ GitHub仕様: [repository](https://docs.github.com/en/rest/repos/repos#get-a-rep
 [statuses](https://docs.github.com/en/rest/commits/statuses)、[gh api](https://cli.github.com/manual/gh_api)。
 APIは `2022-11-28` 固定。Cargo.lockで依存を固定しています。
 
-ライセンスは未決定。LICENSEは追加していません。
+自作コードは [MIT](LICENSE)、Copyright (c) 2026 iwashita-nozomu。
+依存物をMITへ再ライセンスするものではありません。[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+と `third-party/` にCargo.lock全依存とRust標準ライブラリのライセンス・著作権通知を保持し、
+全archiveへ同梱します。再配布時も通知を保持してください。Rustは1.99.1に固定しています。

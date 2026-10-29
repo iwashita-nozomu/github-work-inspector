@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+cache-mode: none
 concurrency:
   group: binary-build-${{ github.ref }}
   cancel-in-progress: false
@@ -28,11 +29,11 @@ jobs:
           persist-credentials: false
       - name: Rust toolchain
         run: |
-          rustup update stable --no-self-update
-          rustup default stable
-          rustup component add rustfmt clippy
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --no-self-update
       - name: Format
         run: cargo fmt --check
+      - name: License notices
+        run: python scripts/licenses.py --check
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Offline fixture and integration tests

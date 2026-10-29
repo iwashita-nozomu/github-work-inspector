@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tomllib
 import zipfile
@@ -29,7 +30,10 @@ dist = root / "dist"
 dist.mkdir(exist_ok=True)
 archive = dist / f"github-work-inspector-v{version}-{args.target}{suffix}"
 assert not archive.exists(), "Do not overwrite an existing release archive"
-entries = [(binary, binary.name), (root / "README.md", "README.md")]
+subprocess.run([sys.executable, str(root / "scripts/licenses.py"), "--check"], check=True)
+entries = [(binary, binary.name), (root / "README.md", "README.md"),
+           (root / "LICENSE", "LICENSE"), (root / "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md")]
+entries += [(path, path.relative_to(root).as_posix()) for path in sorted((root / "third-party").rglob("*")) if path.is_file()]
 skill = root / ".agents/skills/github-work-inspector"
 entries += [(path, "skill/github-work-inspector/" + path.relative_to(skill).as_posix())
             for path in sorted(skill.rglob("*")) if path.is_file()]
