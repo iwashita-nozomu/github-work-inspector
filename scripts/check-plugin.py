@@ -19,7 +19,7 @@ assert m['$schema'] == 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
 for document in [m, json.loads((plugin/'.mcp.json').read_text())]:
     assert set(document['mcpServers']) == {'github-work-inspector'}
     server = document['mcpServers']['github-work-inspector']
-    assert server['command'] == '${PLUGIN_ROOT}/bin/github-work-inspector'
+    assert server['command'] == './bin/github-work-inspector'
     assert server['args'] == ['mcp'] and server['cwd'] == '${PLUGIN_ROOT}'
     assert not set(server)-{'command','args','cwd','type'}
 assert 'allow_implicit_invocation: false' in (plugin/'skills/github-work-inspector-plugin/agents/openai.yaml').read_text()

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "github-work-inspector": {
-      "command": "${PLUGIN_ROOT}/bin/github-work-inspector",
+      "command": "./bin/github-work-inspector",
       "args": [
         "mcp"
       ],

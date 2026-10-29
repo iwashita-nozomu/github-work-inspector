@@ -3,7 +3,7 @@
   "mcpServers": {
     "github-work-inspector": {
       "type": "stdio",
-      "command": "${PLUGIN_ROOT}/bin/github-work-inspector",
+      "command": "./bin/github-work-inspector",
       "args": [
         "mcp"
       ],

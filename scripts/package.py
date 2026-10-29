@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix="gwi-plugin-package-") as directory:
     shutil.copy2(binary, plugin / "bin" / executable)
     for filename in ["mcp.json", ".mcp.json"]:
         document = json.loads((plugin / filename).read_text())
-        document["mcpServers"]["github-work-inspector"]["command"] = "${PLUGIN_ROOT}/bin/" + executable
+        document["mcpServers"]["github-work-inspector"]["command"] = "./bin/" + executable
         (plugin / filename).write_text(json.dumps(document, indent=2) + "\n")
     files = {path.relative_to(plugin).as_posix():hashlib.sha256(path.read_bytes()).hexdigest()
              for path in sorted(plugin.rglob("*")) if path.is_file()}
