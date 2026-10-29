@@ -9,3 +9,6 @@ venv/
 *.log
 output/
 captures/
+/target/
+/dist/
+/.cargo-home/

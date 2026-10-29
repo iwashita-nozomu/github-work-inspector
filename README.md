@@ -1,101 +1,167 @@
 # github-work-inspector
 
-Codex Work から、アクセス権のある任意の **GitHub.com リポジトリ** の基本情報を
-読み取るための、小さな Python 標準ライブラリ CLI と repo 内 Skill です。
-最初のバージョンは、既存の `gh` 認証を利用した repository metadata の取得に限定します。
+認可済みの任意の GitHub.com repo を、Codex から読み取り把握する Rust CLI と
+明示呼び出し用 Skill。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
+通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
 
-## 初期範囲
-
-- 実装済み: `OWNER/REPO` を指定し、`GET /repos/OWNER/REPO` を1回呼び出す。
-- 取得項目: 正式名、GitHub URL、公開範囲、既定ブランチ名、アーカイブ・無効化・
-  テンプレート状態、主な言語、star・fork・open issue の件数、作成・更新・push日時。
-- **未実装**: ブランチ一覧、コミットDAG、Issue本文・一覧、PR、CI、GUI、専用の可視化。
-  既定ブランチ名や件数は基本メタデータとしてのみ含みます。
-- Webサーバー、待受ポート、ブラウザの認証情報保管、AI API呼び出しはありません。
-- GitHub Enterprise Server の独自ホストは初期対象外です。
-
-## 必要な環境と使い方
-
-Python 3.10 以上、GitHub CLI `gh`、対象へのアクセス権を持つ既存の `gh` 認証が必要です。
-Python の追加パッケージやインストール手順は不要です。checkout のルートで実行します。
+## 使う
 
 ```sh
-python3 -m github_work_inspector --help
-python3 -m github_work_inspector repo --help
-python3 -m github_work_inspector repo OWNER/REPO --json
+github-work-inspector repos --limit 20
+github-work-inspector inspect OWNER/REPO
+github-work-inspector inspect OWNER/REPO --json
+github-work-inspector repo OWNER/REPO --json
+github-work-inspector inspect OWNER/REPO --branches 8 --commits 20 --pages 2 --checked-prs 5 --json
 ```
 
-`python` が Python 3.10 以上を指す環境では `python -m github_work_inspector ...` でも動きます。
-`OWNER/REPO` は実際の対象へ置き換えてください。URLは受け付けません。
-owner は英数字・単一ハイフンの1〜39文字、repo は英数字・`_`・`.`・`-` の1〜100文字。
-owner の先頭・末尾ハイフン、連続ハイフン、repo の `.`・`..`、余分な `/`、空白、
-制御文字、クエリなどは拒否します。
+`repos` は既存アカウントからアクセスできるrepo一覧。`--owner NAME` は指定ユーザーの
+repoをpushed順で列挙します。対象は `OWNER/REPO`。URL・パス・任意ホストは受け付けません。
+GitHub Enterprise Server は対象外。取得結果のファイル自動保存はありません。
+Python版はRust版に置換しました。`python -m github_work_inspector` は廃止です。
 
-結果とエラーは1行の JSON を標準出力へ返します。現在は `--json` 省略時も同形式です。
-`--help` のみ通常のヘルプ文を返します。取得データはファイルへ自動保存しません。
+人向け表示はbranchのtip、`child -> parents` のDAG、Issue/PRの状態とCIを表示します。
+DAGはSHA順で、親が取得範囲外なら `?` を付けます。時系列・topological順とは限りません。
+branch間で重複するcommitを統合し、各branchの取得範囲と打切りを記録します。
 
-```json
-{"schema_version":1,"captured_at":"2026-01-01T00:00:00Z","ok":false,"error":{"code":"gh_failed","message":"GitHub metadata request failed. Check access, existing gh authentication, and network."}}
+## インストール / 更新 / 削除
+
+この非公開repoへの既存アクセス権と `gh` が必要です。バイナリ利用にRustは不要。
+[Releases](https://github.com/iwashita-nozomu/github-work-inspector/releases) からターゲットを選びます。
+Mac Apple Silicon: `aarch64-apple-darwin`、Linux x64: `x86_64-unknown-linux-gnu`、
+Windows x64: `x86_64-pc-windows-msvc`。公開済みassetが実在するものだけが配布対象です。
+Intel Mac、Linux arm64等はこの版のビルド済み配布対象外です。
+
+macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせる）:
+
+```sh
+mkdir gwi-download
+cd gwi-download
+gh release download v0.2.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.2.0-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.2.0-aarch64-apple-darwin.tar.gz
+./github-work-inspector --version
+./github-work-inspector install
+~/.local/bin/github-work-inspector inspect OWNER/REPO --json
 ```
 
-成功時は `ok: true` と `repository` オブジェクト、失敗時は `ok: false` と `error` を返します。
-`captured_at` は実行環境で結果を構成した時刻（UTC）で、GitHub上の更新時刻ではありません。
-成功時の `repository` は次のキーを持ちます。
+Windows PowerShellでは `.zip` と `.zip.sha256` を取得し、`Get-FileHash -Algorithm SHA256`
+の結果を `.sha256` と照合して `Expand-Archive` します。展開先の
+`./github-work-inspector.exe install` を実行してください。Windowsの既定binも
+`$HOME/.local/bin`、Skillは `$HOME/.agents/skills/github-work-inspector`。
+PATH・シェル・Codex設定は変更しません。必要ならフルパスで呼び出します。
+
+導入先変更は `--bin-dir PATH --skill-root PATH`。`--skill-root` はSkillの親フォルダです。
+既存ファイルや同名Skillがあれば拒否します。導入はバイナリと埋め込みSkillの2ファイル、
+管理manifestだけを作り、`.install.json` にバージョンとファイルhashを記録します。
+
+```sh
+# 更新は新Releaseを検証・展開したフォルダで実行
+./github-work-inspector install --update
+# 削除（カスタム導入なら同じ --bin-dir / --skill-root を指定）
+~/.local/bin/github-work-inspector uninstall
+```
+
+更新・削除はmanifestと現在のhashが一致する管理対象だけに行います。編集や追加ファイルが
+ある場合は拒否し、利用者の変更を残します。中断時に `.gwi-*-old-*` 等が残っている場合は
+状態を確認して復旧してください。Windowsでは実行中のexeを置換・削除できないため、
+展開先の別コピーから `install --update` / `uninstall` を実行します。
+
+## Codex から呼ぶ
 
 ```text
-name_with_owner, url, visibility, default_branch, archived, disabled, is_template,
-language, stars, forks, open_issues, created_at, updated_at, pushed_at
+$github-work-inspector OWNER/REPO のブランチとPR/CIの状況を確認して。
 ```
 
-`language`・`default_branch`・`pushed_at` は `null` の場合があります。
-`open_issues` は GitHub の `open_issues_count` をそのまま表し、PRも含む件数です。
-将来出力形式を変える場合に備えて `schema_version` を確認してください。
+Skillは `~/.agents/skills/github-work-inspector` に導入し、明示呼び出しだけを許可。
+repo内の `.agents/skills/github-work-inspector` と同名Skillが両方見える場合は対象を選びます。
+変更を検知しない場合はCodexを再起動。読み込み場所は
+[公式OpenAI Skillドキュメント](https://learn.chatgpt.com/docs/build-skills) を参照。
+
+Workの別クラウド環境にはMacのバイナリ・Skill・認証は自動共有されません。
+その環境にも対応バイナリと既存認証済み `gh` が必要です。認証の配布、クラウド登録、
+権限拡大は行いません。
+
+## 観測範囲と欠落
+
+| 項目 | 既定 / 上限 |
+| --- | --- |
+| branch | 6 / 20 |
+| branchごとのcommit | 12 / 100 |
+| Issue・PR・workflow run | 各20 / 各100 |
+| チェックするopen PR | 5 / 20、0で省略 |
+| collectionごとのページ | 2 / 5、各ページ最大100件 |
+| PRごとのcheck runs・commit statuses | 各100件まで |
+| request timeout | 20秒 / 60秒 (`--timeout-seconds`) |
+| 全体の通信時間予算 | 120秒 / 300秒 (`--budget-seconds`) |
+| 応答サイズ | 1request最大8MiB、stderr最大64KiB |
+
+branchはAPI列挙順で標本化し、commitは観測したtip SHAから取得する祖先の有限範囲。
+Issue/PRは更新順・全state、runはAPIの返却順です。`issues` endpointに混在するPRを
+除外し、除外数を記録します。ページ上限までPRしかない場合はIssue未列挙の可能性があります。
+branch数・commit数は全repoの総数ではありません。
+
+各sectionの `coverage` に件数・ページ数・`has_more`・打切り理由・全列挙できたかを記録。
+`has_more: null` は取得失敗等で未確定です。空配列を「存在しない」と即断しないでください。
+取得失敗は部分取得として残りの取得可能なsectionを返し、時間予算超過後は追加通信をしません。
+
+PR checksは標本内のopen PRを更新順に選び、観測head SHAの最新check-runsとcombined
+commit statusesを取得。空チェックを「成功」と推定しません。必須チェックの保護ルール・
+mergeability・IssueとPRの関連付けは未照会です。run/check/statusは独立したAPI観測値で、
+merge可能性やIssue完了を推定しません。
+
+複数GETは原子的snapshotではなく、取得中に状態が変わる可能性があります。
+ルートの `captured_at`、snapshotの開始/終了、metadataと各sectionの観測時刻を確認します。
+API観測情報だけを返し、`inferences` は空配列です。
+
+## JSON とエラー
+
+`--json` は `schema_version: 1`、`captured_at`（UTC）、`ok` を持つ1行JSON。
+`repo` の `repository` はPython初版のキーを保持。新コマンドは `snapshot` / `repositories`、
+導入操作は `installation`。ルート失敗は `error: {code,message}`。
+詳細は [docs/json.md](docs/json.md)。通常表示は人向けテキストです。
 
 | 終了コード | 意味 |
 | --- | --- |
-| 0 | 取得成功、またはヘルプ表示 |
-| 1 | `gh_unavailable`、`gh_failed`、`timeout`、`invalid_response` |
-| 2 | `invalid_arguments`、`invalid_repository` |
+| 0 | 依頼した範囲の取得成功、導入成功、help/version。上限打切りはcoverage参照 |
+| 1 | 全体の取得失敗、応答異常、導入失敗 |
+| 2 | コマンド・範囲・`OWNER/REPO` が不正 |
+| 3 | 部分取得。成功sectionと各errorを確認 |
 
-認証・ネットワーク・存在しない対象・権限不足の詳細は `gh_failed` にまとめます。
-必要なら利用者が `gh auth status` で既存認証を確認してください。このCLIは認証を作成・変更しません。
+`not_found` は不存在と非公開対象の権限不足を区別できません。
+`access_denied`、`rate_limited`、`timeout`、`budget_exhausted`、`response_too_large`、
+`gh_unavailable`、`gh_failed`、`invalid_response` は固定説明だけを返します。
+API応答・gh stderr・例外・認証情報の生出力は転送せず、自動リトライや認証変更もしません。
 
-## Codex Work と Skill
+本文・CIログ・ownerプロフィール・連絡先・生URL・一時clone tokenは出力しません。
+タイトル等は信頼しないデータとして制御文字/方向制御文字を除去し、代表的credential形式を
+秘匿して240文字までに制限します。任意の自由文に埋め込まれた秘密の完全な自動判定はできません。
+非公開結果の保存・共有には利用者の判断が必要です。CLI自身は内容を実行しません。
 
-明示呼び出し用の Skill は `.agents/skills/github-work-inspector/` にあります。
-この checkout を扱う、対応した Codex 環境で `$github-work-inspector` を明示的に呼び出してください。
-`agents/openai.yaml` の `allow_implicit_invocation: false` で自動選択を無効にしています。
-
-Work の実行環境にも、この checkout と Python・`gh`・対象への既存アクセス権が必要です。
-Mac の認証やファイルはクラウドへ自動共有されません。接続先や Skill の読み込み機能が
-利用できない Work 環境では、そのまま実行できません。この repo はグローバル Skill の
-インストール、Work への登録、権限追加を自動で行いません。
-
-## 実行上の制約
-
-外部コマンドは引数配列・`shell=False` で起動し、ホストを `github.com`、HTTPメソッドを
-GET に固定します。タイムアウトは20秒。認証は `gh` の既存設定または既存の環境変数に委ねます。
-子プロセスのデバッグ出力を無効にし、標準エラー・例外の詳細は結果へ転送しません。
-返すフィールドを限定し、ownerプロフィール、連絡先、説明文、APIの生データを出力しません。
-URLは検証済みの正式名から組み立てます。APIのリダイレクトで対象が改名・移転済みの場合は
-取得した正式名が返ります。
-
-CLIは読み取れる対象の内容を権限なく共有するためのものではありません。出力の保存・共有は
-利用者が判断してください。fixtureには架空データだけを使い、会話、認証情報、実データの
-スナップショットをrepoへ含めません。
-
-API仕様は [GitHub REST: Get a repository](https://docs.github.com/en/rest/repos/repos#get-a-repository)、
-実行オプションは [gh api](https://cli.github.com/manual/gh_api) を参照。
-APIバージョンは `2022-11-28` に固定しています。
-対応状況は [GitHub API versions](https://docs.github.com/en/rest/about-the-rest-api/api-versions) を参照してください。
-
-## オフラインテスト
+## 開発・CI・配布
 
 ```sh
-python3 -m unittest discover -s tests -v
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked --offline
+RUSTFLAGS="--remap-path-prefix=$PWD=." cargo build --release --locked
+python3 scripts/package.py --target aarch64-apple-darwin --binary target/release/github-work-inspector
 ```
 
-`gh` 起動をモックし、固定GET、引数検証、JSON形式、応答検証、タイムアウト、エラーの秘匿、
-出力フィールドの限定を確認します。テストはネットワークや実際の認証を使用しません。
+テストは架空fixtureとfake `gh`を使い、ネットワークや実認証を使いません。
+初回依存取得は `cargo fetch --locked`。CLI利用時にPythonやRustは不要です。
+開発用packaging scriptのみPython 3.11以上を使います。
 
-ライセンスは未決定です。LICENSEファイルは追加していません。
+`.github/workflows/build.yml` は手動実行でLinux/Windowsをfmt・clippy・test・release build・
+offline smokeし、archiveとSHA256を1日保持のartifactへ出力。cacheは作りません。
+private CIの実行枠/課金を確認してから実行してください。保護設定は変更しません。
+releaseはworkflowから自動作成せず、検証済みartifactと実機確認済みMac archiveを
+同一commitのタグへ載せます。対応ターゲットと検証範囲は各Release説明が正となります。
+SHA256は破損検出用で第三者署名ではありません。Mac版はDeveloper ID署名・notarizeなしです。
+OSが実行を拒否した場合は保護を自動で弱めず、利用者へ報告します。
+
+GitHub仕様: [repository](https://docs.github.com/en/rest/repos/repos#get-a-repository)、
+[commits](https://docs.github.com/en/rest/commits/commits)、[checks](https://docs.github.com/en/rest/checks/runs)、
+[statuses](https://docs.github.com/en/rest/commits/statuses)、[gh api](https://cli.github.com/manual/gh_api)。
+APIは `2022-11-28` 固定。Cargo.lockで依存を固定しています。
+
+ライセンスは未決定。LICENSEは追加していません。

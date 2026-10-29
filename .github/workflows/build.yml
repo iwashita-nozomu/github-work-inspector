@@ -1,0 +1,49 @@
+name: Build release binaries
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: binary-build-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: target/release/github-work-inspector
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            binary: target/release/github-work-inspector.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      RUSTFLAGS: --remap-path-prefix=${{ github.workspace }}=.
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Rust toolchain
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+          rustup component add rustfmt clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Offline fixture and integration tests
+        run: cargo test --locked --offline
+      - name: Release build
+        run: cargo build --release --locked --offline
+      - name: Smoke and package
+        run: python scripts/package.py --target ${{ matrix.target }} --binary ${{ matrix.binary }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: github-work-inspector-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
