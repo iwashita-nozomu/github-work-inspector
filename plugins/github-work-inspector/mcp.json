@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "github-work-inspector": {
+      "type": "stdio",
+      "command": "${PLUGIN_ROOT}/bin/github-work-inspector",
+      "args": [
+        "mcp"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

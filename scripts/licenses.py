@@ -96,7 +96,8 @@ def generate():
     check()
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--check", action="store_true")
-args = parser.parse_args()
-check() if args.check else generate()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    check() if args.check else generate()

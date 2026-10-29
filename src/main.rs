@@ -27,6 +27,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Start the read-only MCP server on stdio (protocol-only stdout; no listening port).
+    Mcp,
     /// Read one repository's basic metadata.
     Repo { repository: String },
     /// Read bounded branches, commit DAG, issues, pull requests, and CI observations.
@@ -84,6 +86,7 @@ struct Paths {
 fn execute(cli: Cli) -> Result<(Value, i32)> {
     let mut api = Gh::new(cli.timeout_seconds, cli.budget_seconds);
     match cli.command {
+        Commands::Mcp => unreachable!("MCP is dispatched before CLI result formatting"),
         Commands::Repo { repository } => {
             let repo = Repo::parse(&repository)?;
             let page = api.get(&repo.endpoint())?;
@@ -183,6 +186,9 @@ fn main() {
             std::process::exit(2);
         }
     };
+    if matches!(cli.command, Commands::Mcp) {
+        std::process::exit(github_work_inspector::mcp::run());
+    }
     let (value, code) = match execute(cli) {
         Ok(result) => result,
         Err(error) => {

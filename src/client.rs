@@ -2,6 +2,10 @@ use crate::{now, Error, Result};
 use serde_json::Value;
 use std::io::Read;
 use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -21,6 +25,7 @@ pub trait Api {
 pub struct Gh {
     deadline: Instant,
     timeout: Duration,
+    cancelled: Option<Arc<AtomicBool>>,
 }
 
 impl Gh {
@@ -28,7 +33,17 @@ impl Gh {
         Self {
             deadline: Instant::now() + Duration::from_secs(budget),
             timeout: Duration::from_secs(timeout),
+            cancelled: None,
         }
+    }
+    pub fn with_cancellation(mut self, flag: Arc<AtomicBool>) -> Self {
+        self.cancelled = Some(flag);
+        self
+    }
+    fn cancelled(&self) -> bool {
+        self.cancelled
+            .as_ref()
+            .is_some_and(|f| f.load(Ordering::Relaxed))
     }
 }
 
@@ -103,6 +118,9 @@ pub fn parse_response(raw: &[u8]) -> Result<Page> {
 
 impl Api for Gh {
     fn get(&mut self, endpoint: &str) -> Result<Page> {
+        if self.cancelled() {
+            return Err(Error::new("cancelled"));
+        }
         let remaining = self
             .deadline
             .checked_duration_since(Instant::now())
@@ -116,13 +134,19 @@ impl Api for Gh {
         let out = thread::spawn(move || read_limited(stdout, MAX_RESPONSE));
         let err = thread::spawn(move || read_limited(stderr, 64 * 1024));
         let started = Instant::now();
-        let mut timed_out = false;
+        let mut stop_code = None;
         let status = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break Some(status),
-                Ok(None) if started.elapsed() < timeout => thread::sleep(Duration::from_millis(10)),
+                Ok(None) if started.elapsed() < timeout && !self.cancelled() => {
+                    thread::sleep(Duration::from_millis(10))
+                }
                 _ => {
-                    timed_out = true;
+                    stop_code = Some(if self.cancelled() {
+                        "cancelled"
+                    } else {
+                        "timeout"
+                    });
                     let _ = child.kill();
                     let _ = child.wait();
                     break None;
@@ -137,8 +161,8 @@ impl Api for Gh {
             .join()
             .map_err(|_| Error::new("gh_failed"))?
             .map_err(|_| Error::new("gh_failed"))?;
-        if timed_out {
-            return Err(Error::new("timeout"));
+        if let Some(code) = stop_code {
+            return Err(Error::new(code));
         }
         if stdout.len() as u64 > MAX_RESPONSE || stderr.len() > 64 * 1024 {
             return Err(Error::new("response_too_large"));

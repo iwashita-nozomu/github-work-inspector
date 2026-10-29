@@ -1,8 +1,54 @@
 # github-work-inspector
 
-認可済みの任意の GitHub.com repo を、Codex から読み取り把握する Rust CLI と
-明示呼び出し用 Skill。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
+認可済みの任意の GitHub.com repo を、Codex から読み取り把握する Rust CLI・stdio MCP と
+明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
 通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
+
+## Codex プラグインとして導入
+
+Release の `github-work-inspector-plugin-v0.3.0-<TARGET>` archive と同名 `.sha256` を
+取得して照合し、空の作業フォルダへ展開します。CLI 単体 archive とプラグイン archive は別です。
+SHA256 は破損検出で、配布元の署名認証ではありません。取得元はこの repo の versioned Release に固定してください。
+
+```sh
+# Apple Silicon Mac の例。Windows は zip / Get-FileHash / Expand-Archive を使用
+sha256sum -c github-work-inspector-plugin-v0.3.0-aarch64-apple-darwin.tar.gz.sha256
+# macOS の標準コマンドでは上行を shasum -a 256 -c に置換
+tar -xzf github-work-inspector-plugin-v0.3.0-aarch64-apple-darwin.tar.gz
+cd github-work-inspector
+python3 install-plugin.py
+codex plugin add github-work-inspector@personal-local --json
+codex plugin list --json
+```
+
+導入補助に Python 3.11+ が必要です。CLI/MCP の実行は Rust バイナリと既存の `gh` だけです。
+補助スクリプトは `~/plugins/github-work-inspector` にソースを置き、
+`~/.agents/plugins/marketplace.json` に1項目を登録します。既存 marketplace の名前・項目は保全し、
+既存の名前が personal-local 以外なら出力された identity を `codex plugin add` に使います。
+Codex の正式 CLI が cache と自プラグインの有効化を管理します。補助スクリプトは cache・認証・
+グローバル安全設定を編集しません。既存ソース・異なる登録・symlink は拒否します。
+
+導入後は **新しい Codex セッション** で `$github-work-inspector-plugin` を明示指定します。
+既存の単独 Skill `$github-work-inspector` は削除せず併存できます。
+ツールは `list_repositories`、`repository_metadata`、`repository_snapshot` の3つだけです。
+`repository_snapshot` の例: `{"repository":"OWNER/REPO","branches":2,"commits":6,"pages":1}`。
+root `plugin.json` / `mcp.json` と Codex 互換 `.codex-plugin/plugin.json` / `.mcp.json` を同梱。
+起動は `${PLUGIN_ROOT}/bin/github-work-inspector mcp`（Windows は `.exe`）、HTTP は使いません。
+
+更新は新 Release を照合・展開し、そのフォルダで `python3 install-plugin.py --update`、
+続いて同じ `codex plugin add ... --json` を実行します。厳密なファイル hash 確認により編集・追加を
+検出したら停止します。旧ソースと marketplace は backup を残します。rollback は Codex の
+`plugin remove` 後、backup を別途確認して元へ戻し、同じ identity を再導入します。
+削除は `codex plugin remove github-work-inspector@personal-local --json`。
+元ソース・backup・marketplace 登録は自動削除しません。不要なら内容確認後に対象項目と
+`~/plugins/github-work-inspector` だけを手動で片付けてください。単独 CLI/Skill の削除は下記の別操作です。
+
+個人 local marketplace の自動更新 toggle/cadence は確認できていません。
+Git marketplace の `codex plugin marketplace upgrade <name>` は手動更新です。
+この配布はローカルのビルド済みバイナリを使うため、上記の明示的な Release 更新を使います。
+独自 daemon/cron/launchagent は追加しません。workspace 管理の GitHub 日次同期とは別機能です。
+将来の更新も実行可能コードを置き換えるため、更新元・差分を確認してください。
+[安全性と検知後の対応](docs/security.md) も参照してください。
 
 ## 使う
 
@@ -37,9 +83,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.2.1 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.2.1-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.2.1-aarch64-apple-darwin.tar.gz
+gh release download v0.3.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.3.0-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.3.0-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
@@ -154,12 +200,15 @@ python3 scripts/package.py --target aarch64-apple-darwin --binary target/release
 開発用packaging scriptのみPython 3.11以上を使います。
 
 `.github/workflows/build.yml` は手動実行でLinux/Windowsをfmt・clippy・test・release build・
-offline smokeし、archiveとSHA256を1日保持のartifactへ出力。cacheは作りません。
-このPublic repoの標準GitHub-hosted runnerを使用します。larger runner・有料オプションは使いません。保護設定は変更しません。
+offline smokeし、CLI / plugin archiveとSHA256を1日保持のartifactへ出力。cacheは作りません。
+このPublic repoの標準GitHub-hosted runnerを使用します。larger runner・有料オプションは使いません。
 releaseはworkflowから自動作成せず、検証済みartifactと実機確認済みMac archiveを
 同一commitのタグへ載せます。対応ターゲットと検証範囲は各Release説明が正となります。
 SHA256は破損検出用で第三者署名ではありません。Mac版はDeveloper ID署名・notarizeなしです。
 OSが実行を拒否した場合は保護を自動で弱めず、利用者へ報告します。
+
+push/通常 PR の verify、RustSec の日次検査、CodeQL の週次/変更時検査は別 workflow です。
+Dependabot は Cargo と SHA 固定 Action の更新 PR を毎日確認します。無検証 merge はしません。
 
 GitHub仕様: [repository](https://docs.github.com/en/rest/repos/repos#get-a-repository)、
 [commits](https://docs.github.com/en/rest/commits/commits)、[checks](https://docs.github.com/en/rest/checks/runs)、

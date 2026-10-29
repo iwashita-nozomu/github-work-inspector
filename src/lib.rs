@@ -1,6 +1,7 @@
 pub mod client;
 pub mod inspect;
 pub mod install;
+pub mod mcp;
 pub mod render;
 
 use chrono::{SecondsFormat, Utc};
@@ -34,6 +35,8 @@ impl Error {
             "rate_limited" => "GitHub rate limit reached; no automatic retry was attempted.",
             "response_too_large" => "GitHub response exceeded the size limit.",
             "invalid_response" => "GitHub returned an invalid response.",
+            "cancelled" => "The read-only request was cancelled.",
+            "busy" => "Two read-only requests are already running. Try again after one completes.",
             "install_conflict" => "Existing or edited files prevent a managed installation change.",
             "install_io" => {
                 "Installation filesystem operation failed; inspect the requested destinations."

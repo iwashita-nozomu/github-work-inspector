@@ -1,0 +1,32 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "github-work-inspector",
+  "version": "0.3.0",
+  "description": "Read-only GitHub repository progress through a local Rust stdio MCP server.",
+  "author": {
+    "name": "iwashita-nozomu",
+    "url": "https://github.com/iwashita-nozomu"
+  },
+  "homepage": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "repository": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "read-only",
+    "codex",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GitHub Work Inspector",
+        "shortDescription": "Read GitHub repo progress",
+        "longDescription": "Read-only GitHub.com repository metadata, bounded branch/commit DAG and Issue/PR/CI observations through existing gh authentication.",
+        "developerName": "iwashita-nozomu",
+        "category": "Productivity",
+        "capabilities": [],
+        "defaultPrompt": "Inspect an authorized GitHub repository and explain missing data."
+      }
+    }
+  }
+}

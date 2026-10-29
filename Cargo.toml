@@ -1,6 +1,6 @@
 [package]
 name = "github-work-inspector"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Bounded, read-only GitHub repository snapshots for Codex"
 publish = false
@@ -13,6 +13,8 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+rmcp = { version = "3.8", default-features = false, features = ["server", "transport-io"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
 
 [profile.release]
 strip = true
