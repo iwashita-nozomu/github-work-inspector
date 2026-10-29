@@ -1,3 +1,4 @@
+pub mod changes;
 pub mod client;
 pub mod inspect;
 pub mod install;
@@ -23,6 +24,9 @@ pub struct Error {
 impl Error {
     pub fn new(code: &str) -> Self {
         let message = match code {
+            "invalid_commit" => {
+                "Expected a complete 40- or 64-hex commit SHA; short refs are not accepted."
+            }
             "invalid_repository" => "Expected a GitHub.com OWNER/REPO identifier.",
             "invalid_arguments" => "Invalid command or arguments. Use --help.",
             "gh_unavailable" => "Unable to start the existing gh CLI.",
@@ -89,15 +93,27 @@ pub fn sha(value: &str) -> Result<String> {
     }
 }
 
-pub fn text(value: &str) -> String {
+fn secret_pattern() -> &'static Regex {
     static SECRETS: OnceLock<Regex> = OnceLock::new();
-    let pattern = SECRETS.get_or_init(|| {
+    SECRETS.get_or_init(|| {
         Regex::new(concat!(
         r"(?i)(?:gh[pousr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9_-]{16,}|",
         r"AKIA[A-Z0-9]{16}|(?:bearer\s+|(?:token|password|secret|api[_-]?key)\s*[:=]\s*)[^\s,;]+|",
         r"[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})"
     )).unwrap()
-    });
+    })
+}
+
+pub fn is_bidi(c: char) -> bool {
+    matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{200e}' | '\u{200f}')
+}
+pub fn has_sensitive_text(value: &str) -> bool {
+    let upper = value.to_ascii_uppercase();
+    secret_pattern().is_match(value)
+        || (upper.contains("-----BEGIN ") && upper.contains("PRIVATE KEY-----"))
+}
+pub fn text(value: &str) -> String {
+    let pattern = secret_pattern();
     let clean: String = value.chars().map(|c| {
         if c.is_control() || matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{200e}' | '\u{200f}') { ' ' } else { c }
     }).collect();

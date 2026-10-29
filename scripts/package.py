@@ -21,7 +21,9 @@ args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 version = tomllib.loads((root / "Cargo.toml").read_text())["package"]["version"]
 binary = args.binary.resolve()
-for arguments in (["--help"], ["--version"], ["inspect", "--help"], ["install", "--help"], ["mcp", "--help"]):
+reported = subprocess.run([str(binary), "--version"], capture_output=True, timeout=10)
+assert reported.returncode == 0 and reported.stdout.decode().strip() == f"github-work-inspector {version}", "Binary version differs from source manifest"
+for arguments in (["--help"], ["--version"], ["inspect", "--help"], ["install", "--help"], ["mcp", "--help"], ["commit", "--help"]):
     result = subprocess.run([str(binary), *arguments], capture_output=True, timeout=10)
     if result.returncode or result.stderr:
         raise SystemExit("Offline CLI smoke failed")

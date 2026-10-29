@@ -1,0 +1,26 @@
+{
+  "sha": "9999999999999999999999999999999999999999",
+  "commit": {
+    "message": "Allow slower requests\nSynthetic fixture only; author intent is not verified."
+  },
+  "parents": [
+    {
+      "sha": "8888888888888888888888888888888888888888"
+    }
+  ],
+  "stats": {
+    "additions": 1,
+    "deletions": 1,
+    "total": 2
+  },
+  "files": [
+    {
+      "filename": "src/settings.rs",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "patch": "@@ -1,2 +1,2 @@\n-pub const REQUEST_TIMEOUT_SECONDS: u64 = 10;\n+pub const REQUEST_TIMEOUT_SECONDS: u64 = 20;\n pub const MAX_RETRIES: u32 = 0;"
+    }
+  ]
+}

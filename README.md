@@ -6,15 +6,15 @@
 
 ## Codex プラグインとして導入
 
-Release の `github-work-inspector-plugin-v0.3.4-<TARGET>` archive と同名 `.sha256` を
+Release の `github-work-inspector-plugin-v0.4.0-<TARGET>` archive と同名 `.sha256` を
 取得して照合し、空の作業フォルダへ展開します。CLI 単体 archive とプラグイン archive は別です。
 SHA256 は破損検出で、配布元の署名認証ではありません。取得元はこの repo の versioned Release に固定してください。
 
 ```sh
 # Apple Silicon Mac の例。Windows は zip / Get-FileHash / Expand-Archive を使用
-sha256sum -c github-work-inspector-plugin-v0.3.4-aarch64-apple-darwin.tar.gz.sha256
+sha256sum -c github-work-inspector-plugin-v0.4.0-aarch64-apple-darwin.tar.gz.sha256
 # macOS の標準コマンドでは上行を shasum -a 256 -c に置換
-tar -xzf github-work-inspector-plugin-v0.3.4-aarch64-apple-darwin.tar.gz
+tar -xzf github-work-inspector-plugin-v0.4.0-aarch64-apple-darwin.tar.gz
 cd github-work-inspector
 python3 install-plugin.py
 codex plugin add github-work-inspector@personal-local --json
@@ -30,7 +30,7 @@ Codex の正式 CLI が cache と自プラグインの有効化を管理しま�
 
 導入後は **新しい Codex セッション** で `$github-work-inspector-plugin` を明示指定します。
 既存の単独 Skill `$github-work-inspector` は削除せず併存できます。
-ツールは `list_repositories`、`repository_metadata`、`repository_snapshot` の3つだけです。
+ツールは `list_repositories`、`repository_metadata`、`repository_snapshot` と、新しい `repository_commit` です。既存の3ツール allowlist は自動で変更しません。
 `repository_snapshot` の例: `{"repository":"OWNER/REPO","branches":2,"commits":6,"pages":1}`。
 root `plugin.json` / `mcp.json` と Codex 互換 `.codex-plugin/plugin.json` / `.mcp.json` を同梱。
 起動は プラグイン root を基準とする `./bin/github-work-inspector mcp`（Windows は `.exe`）、HTTP は使いません。
@@ -72,6 +72,47 @@ Python版はRust版に置換しました。`python -m github_work_inspector` は
 DAGはSHA順で、親が取得範囲外なら `?` を付けます。時系列・topological順とは限りません。
 branch間で重複するcommitを統合し、各branchの取得範囲と打切りを記録します。
 
+## 選択した commit → file → diff
+
+```sh
+# 完全長40/64桁のSHAだけ。repo指定はこれまで通り。
+github-work-inspector commit OWNER/REPO FULL_SHA --limit 10 --json
+# 一覧の index を選ぶ。選択した1ファイルの patch だけを返す。
+github-work-inspector commit OWNER/REPO FULL_SHA --mode patch --file-index 2 --file-id FILE_ID --patch-lines 120 --patch-bytes 16384 --json
+```
+
+新 MCP `repository_commit` は repository / sha を必須にし、mode は files（既定）/patch。
+patch モードでは一覧の file_id も必須です。番号が別ファイルを指す場合は表示せず失敗します。
+file_index は0〜2999、一覧 limit は1〜20（既定10）、patch_lines は1〜400（既定120）、
+patch_bytes は1〜65536（既定16384）。既存と同じ timeout_seconds / budget_seconds を使用。
+必要な GitHub 権限は Contents read。既存認証だけを使用し、権限は追加しません。
+**patch は実際のソース差分をモデルのコンテキストに返します。** 非公開コードを選ぶ際は
+その共有範囲を確認してください。秘密らしい内容は省略しますが完全な秘匿検出ではありません。
+
+GET commit JSON を `per_page=1&page=index+1` で読みます。選択commitの一覧も最大20件の
+1ファイルページに限定。API は各ページにそのファイルの patch を含むことがありますが、
+一覧モードでは破棄し返却・保存しません。全 commit の diff/patch media type、clone、
+任意 URL、ローカルファイル、shell、追加 AI API は使用しません。
+
+追加・変更・削除・rename と previous_filename、additions/deletions/changes を API 観測値で返します。
+完全SHAとファイル番号は次の明示取得に渡す値で、短縮SHAは表示ラベルだけです。
+削除ファイルの新blobリンクは作りません。旧blobは単一親の完全SHAと観測した旧pathがある場合だけ。
+merge の API patch は **比較親未確定** と明記し、親別比較をしたとは扱わず、旧blobリンクを作りません。
+初期commitはempty-tree基準。API patch の完全性は保証できず、バイナリ/大きすぎる差分/未提供を
+欠落した patch だけから区別しません。上限・途中失敗・3000ファイル API cap・観測時刻を明示します。
+
+patch は制御文字/方向制御文字を除き、秘密らしい値・秘密ファイル・大きすぎる入力は全体を省略。
+行/byte打切りと理由を記録し、HTML用の escaped text も返します。データを実行せず、事実と AI 解釈を分離します。
+意味要約はホスト Codex GPT が実根拠から作ります。定型キーワードエンジンや追加GPT APIは使いません。
+何を変更・確認できる理由・限定された影響を説明し、未確認の意図は推定として分けます。
+[意味要約の合成例と受入基準](docs/semantic-review.md) を参照。
+画面は chat 内の native visualize を優先し、取得だけで描画済みと扱いません。
+commit/file の選択は取得済みデータの切替か、次の明示ツール取得。描画HTMLから通信しません。
+native visualize が使えなければ未達と伝え、静的な file一覧/diff を代替表示します。
+
+既存の3ツール制限は自動で拡張しません。新版の導入と新ツール有効化は
+別途レビュー後に行います。**ブロックされた新ツールをCLIで迂回してはいけません。**
+
 ## インストール / 更新 / 削除
 
 本repoとReleaseはPublic、プロジェクトの自作部分はMITです。バイナリ利用にRustは不要。
@@ -86,9 +127,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.3.4 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.3.4-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.3.4-aarch64-apple-darwin.tar.gz
+gh release download v0.4.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.4.0-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.4.0-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
@@ -182,7 +223,7 @@ API観測情報だけを返し、`inferences` は空配列です。
 `gh_unavailable`、`gh_failed`、`invalid_response` は固定説明だけを返します。
 API応答・gh stderr・例外・認証情報の生出力は転送せず、自動リトライや認証変更もしません。
 
-本文・CIログ・ownerプロフィール・連絡先・生URL・一時clone tokenは出力しません。
+Issue/PR本文・CIログ・ownerプロフィール・連絡先・生URL・一時clone tokenは出力しません。
 タイトル等は信頼しないデータとして制御文字/方向制御文字を除去し、代表的credential形式を
 秘匿して240文字までに制限します。任意の自由文に埋め込まれた秘密の完全な自動判定はできません。
 非公開結果の保存・共有には利用者の判断が必要です。CLI自身は内容を実行しません。

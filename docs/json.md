@@ -61,3 +61,17 @@ latest successful page observation, or an attempt timestamp when none succeeded.
 Text may be redacted/truncated; it is not suitable for reconstructing original
 content. New additive fields may appear within v1. Breaking field/type/semantic
 changes require a new schema version.
+
+## Selected commit/file (0.4.0)
+
+`commit_details` contains repository, immutable commit metadata, observed file entries,
+coverage, error, partial and inferences. File `index` is zero-based in the API's file order;
+Patch mode also requires the observed `file_id` (SHA256 identity binding of commit/path);
+a mismatched file is rejected without displaying its patch.
+`coverage.next_file_index` is a bounded continuation, not proof of a complete repository.
+`patch` is null in files mode. Patch mode returns a single selected file and bounded
+`patch.text` / `html_escaped`, or an `omission_reason`. Local truncation is separate
+from API completeness, which is always `not_guaranteed`. Missing patches do not prove
+binary data. Merge parent basis is `github_commit_api_merge_parent_unspecified`, with
+no claimed first-parent comparison. Only single-parent old blob URLs are generated.
+No whole-commit diff is requested and API fields/raw logs are not forwarded wholesale.
