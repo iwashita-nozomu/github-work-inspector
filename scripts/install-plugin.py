@@ -68,31 +68,62 @@ def main():
     target.parent.mkdir(parents=True, exist_ok=True)
     market.parent.mkdir(parents=True, exist_ok=True)
     lock = target.parent / '.github-work-inspector-install.lock'
+    # The exclusive file owns the lock, not an open handle (Windows unlink rules).
     with lock.open('x'):
+        pass
+    stage = temporary = backup = None
+    promoted = committed = False
+    new_market = (json.dumps(payload, indent=2) + '\n').encode()
+    try:
         stage = Path(tempfile.mkdtemp(prefix='.gwi-plugin-new-', dir=target.parent))
-        backup = None
-        try:
-            shutil.copytree(source, stage, dirs_exist_ok=True)
-            verify(stage)
-            require((market.read_bytes() if market.exists() else None) == before, 'Marketplace changed concurrently')
-            if target.exists():
-                backup = target.with_name(NAME + '.backup-' + str(time.time_ns()))
-                target.rename(backup)
-            stage.rename(target)
-            if before is not None:
-                backup_market = market.with_name('marketplace.json.backup-' + str(time.time_ns()))
-                backup_market.write_bytes(before)
-            with tempfile.NamedTemporaryFile(dir=market.parent, prefix='.gwi-market-', delete=False) as out:
-                out.write((json.dumps(payload, indent=2) + '\n').encode())
-                temporary = Path(out.name)
-            temporary.replace(market)
-        except BaseException:
-            if backup and (not target.exists()):
+        shutil.copytree(source, stage, dirs_exist_ok=True)
+        verify(stage)
+        require((market.read_bytes() if market.exists() else None) == before, 'Marketplace changed concurrently')
+        if target.exists():
+            verify(target)
+            backup = target.with_name(NAME + '.backup-' + str(time.time_ns()))
+            target.rename(backup)
+        stage.rename(target)
+        promoted = True
+        if before is not None:
+            backup_market = market.with_name('marketplace.json.backup-' + str(time.time_ns()))
+            with backup_market.open('xb') as stream:
+                stream.write(before)
+        with tempfile.NamedTemporaryFile(dir=market.parent, prefix='.gwi-market-', delete=False) as out:
+            temporary = Path(out.name)
+            out.write(new_market)
+        require((market.read_bytes() if market.exists() else None) == before, 'Marketplace changed concurrently')
+        temporary.replace(market)
+        committed = True
+    except BaseException:
+        if not committed:
+            # Read back an uncertain replace before deciding whether to restore it.
+            current = market.read_bytes() if market.exists() else None
+            if current == new_market and current != before:
+                if before is None:
+                    market.unlink()
+                else:
+                    with tempfile.NamedTemporaryFile(dir=market.parent, prefix='.gwi-market-rollback-', delete=False) as out:
+                        restore = Path(out.name)
+                        out.write(before)
+                    restore.replace(market)
+            elif current != before:
+                # Preserve concurrent edits; do not replace somebody else's marketplace.
+                raise ValueError('Marketplace changed concurrently; inspect source and backups')
+            if promoted and target.exists():
+                # Retain even edits made after promotion, rather than deleting that tree.
+                failed = target.with_name(NAME + '.failed-' + str(time.time_ns()))
+                target.rename(failed)
+            if backup and not target.exists():
                 backup.rename(target)
-            raise
-        finally:
-            if stage.exists():
+        raise
+    finally:
+        try:
+            if stage is not None and stage.exists():
                 shutil.rmtree(stage)
+            if temporary is not None and temporary.exists():
+                temporary.unlink()
+        finally:
             lock.unlink()
     print(json.dumps({'version': manifest['version'], 'source': str(target), 'marketplace': str(market), 'identity': NAME + '@' + payload['name'], 'backup': str(backup) if backup else None}))
     print('Next: codex plugin add ' + NAME + '@' + payload['name'] + ' --json')

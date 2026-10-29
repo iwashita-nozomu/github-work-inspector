@@ -6,15 +6,15 @@
 
 ## Codex プラグインとして導入
 
-Release の `github-work-inspector-plugin-v0.3.3-<TARGET>` archive と同名 `.sha256` を
+Release の `github-work-inspector-plugin-v0.3.4-<TARGET>` archive と同名 `.sha256` を
 取得して照合し、空の作業フォルダへ展開します。CLI 単体 archive とプラグイン archive は別です。
 SHA256 は破損検出で、配布元の署名認証ではありません。取得元はこの repo の versioned Release に固定してください。
 
 ```sh
 # Apple Silicon Mac の例。Windows は zip / Get-FileHash / Expand-Archive を使用
-sha256sum -c github-work-inspector-plugin-v0.3.3-aarch64-apple-darwin.tar.gz.sha256
+sha256sum -c github-work-inspector-plugin-v0.3.4-aarch64-apple-darwin.tar.gz.sha256
 # macOS の標準コマンドでは上行を shasum -a 256 -c に置換
-tar -xzf github-work-inspector-plugin-v0.3.3-aarch64-apple-darwin.tar.gz
+tar -xzf github-work-inspector-plugin-v0.3.4-aarch64-apple-darwin.tar.gz
 cd github-work-inspector
 python3 install-plugin.py
 codex plugin add github-work-inspector@personal-local --json
@@ -38,6 +38,9 @@ root `plugin.json` / `mcp.json` と Codex 互換 `.codex-plugin/plugin.json` / `
 更新は新 Release を照合・展開し、そのフォルダで `python3 install-plugin.py --update`、
 続いて同じ `codex plugin add ... --json` を実行します。厳密なファイル hash 確認により編集・追加を
 検出したら停止します。旧ソースと marketplace は backup を残します。rollback は Codex の
+導入途中の I/O 失敗では旧ソースと marketplace を復元し、新候補を `.failed-*` へ退避します。
+lock は handle を閉じた上で解放します。復元自体が I/O エラーの場合は成功と扱わず、残った
+source・backup・failed の状態を確認してください。通常の rollback は Codex の
 `plugin remove` 後、backup を別途確認して元へ戻し、同じ identity を再導入します。
 削除は `codex plugin remove github-work-inspector@personal-local --json`。
 元ソース・backup・marketplace 登録は自動削除しません。不要なら内容確認後に対象項目と
@@ -83,9 +86,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.3.3 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.3.3-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.3.3-aarch64-apple-darwin.tar.gz
+gh release download v0.3.4 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.3.4-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.3.4-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
