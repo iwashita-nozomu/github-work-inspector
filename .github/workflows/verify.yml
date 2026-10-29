@@ -23,3 +23,4 @@ jobs:
       - run: cargo test --locked --offline
       - run: python scripts/licenses.py --check
       - run: python scripts/check-plugin.py
+      - run: python scripts/test-plugin-install.py

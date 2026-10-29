@@ -6,15 +6,15 @@
 
 ## Codex プラグインとして導入
 
-Release の `github-work-inspector-plugin-v0.3.2-<TARGET>` archive と同名 `.sha256` を
+Release の `github-work-inspector-plugin-v0.3.3-<TARGET>` archive と同名 `.sha256` を
 取得して照合し、空の作業フォルダへ展開します。CLI 単体 archive とプラグイン archive は別です。
 SHA256 は破損検出で、配布元の署名認証ではありません。取得元はこの repo の versioned Release に固定してください。
 
 ```sh
 # Apple Silicon Mac の例。Windows は zip / Get-FileHash / Expand-Archive を使用
-sha256sum -c github-work-inspector-plugin-v0.3.2-aarch64-apple-darwin.tar.gz.sha256
+sha256sum -c github-work-inspector-plugin-v0.3.3-aarch64-apple-darwin.tar.gz.sha256
 # macOS の標準コマンドでは上行を shasum -a 256 -c に置換
-tar -xzf github-work-inspector-plugin-v0.3.2-aarch64-apple-darwin.tar.gz
+tar -xzf github-work-inspector-plugin-v0.3.3-aarch64-apple-darwin.tar.gz
 cd github-work-inspector
 python3 install-plugin.py
 codex plugin add github-work-inspector@personal-local --json
@@ -83,9 +83,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.3.2 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.3.2-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.3.2-aarch64-apple-darwin.tar.gz
+gh release download v0.3.3 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.3.3-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.3.3-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
