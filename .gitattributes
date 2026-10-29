@@ -1,2 +1,2 @@
 * text=auto eol=lf
-/third-party/** -text
+/third-party/** -text -whitespace

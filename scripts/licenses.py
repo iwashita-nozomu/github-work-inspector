@@ -49,11 +49,11 @@ def generate():
     DEST.mkdir()
     manifest = {"rust_version": RUST_VERSION, "crates": [], "files": []}
     lines = ["# Third-party notices", "", "Original project code is MIT (see LICENSE). Dependencies retain their upstream licenses.",
-             "This conservative bundle covers every registry package in Cargo.lock, including build-time and", 
+             "This conservative bundle covers every registry package in Cargo.lock, including build-time and",
              "other-target packages; it does not assert that every listed package is linked into every binary.",
-             "Upstream copyright/license/notice files are preserved verbatim. Public upstream author names", 
-             "and contact details in those required notices are intentionally retained.", "", 
-             "Crate provenance: crates.io registry sources verified by Cargo.lock checksums.", "", 
+             "Upstream copyright/license/notice files are preserved verbatim. Public upstream author names",
+             "and contact details in those required notices are intentionally retained.", "",
+             "Crate provenance: crates.io registry sources verified by Cargo.lock checksums.", "",
              "| Crate | Version | Upstream SPDX expression | Preserved notices |", "| --- | --- | --- | --- |"]
     for package in locked():
         name, version = package["name"], package["version"]
@@ -86,7 +86,7 @@ def generate():
         manifest["files"].append({"path": relative.as_posix(), "sha256": digest(target)})
     lines += ["", "## Rust standard library", "", f"Compiler pinned to Rust {RUST_VERSION}. The standard-library notice comes verbatim from the",
               "official rustup toolchain's share/doc/rust/COPYRIGHT-library.html, with its license texts.",
-              "This includes the standard-library third-party notices; it is not a claim that the", 
+              "This includes the standard-library third-party notices; it is not a claim that the",
               "entire compiler, LLVM, or every component is shipped in the executable.",
               f"See [Rust notices](third-party/rust-{RUST_VERSION}/COPYRIGHT-library.html).", "",
               "Re-distribution must retain this notice bundle and the original project's LICENSE.", ""]
