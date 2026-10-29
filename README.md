@@ -37,7 +37,7 @@ root `plugin.json` / `mcp.json` と Codex 互換 `.codex-plugin/plugin.json` / `
 
 更新は新 Release を照合・展開し、そのフォルダで `python3 install-plugin.py --update`、
 続いて同じ `codex plugin add ... --json` を実行します。厳密なファイル hash 確認により編集・追加を
-検出したら停止します。旧ソースと marketplace は backup を残します。rollback は Codex の
+検出したら停止します。旧ソースと marketplace は backup を残します。
 導入途中の I/O 失敗では旧ソースと marketplace を復元し、新候補を `.failed-*` へ退避します。
 lock は handle を閉じた上で解放します。復元自体が I/O エラーの場合は成功と扱わず、残った
 source・backup・failed の状態を確認してください。通常の rollback は Codex の
