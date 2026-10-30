@@ -4,7 +4,7 @@
 明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
 通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
 
-## 図内履歴から選択して深掘り（開発版0.5.0）
+## 図内履歴から選択して深掘り（v0.5.0）
 
 プラグインを明示選択し「このレポを見て」と頼むと、ホストGPTはbranch/commit/変更fileと短い要約を
 会話内のnative図へまとめます。初回は最大2commit・各5fileのmetadataまでで、patchを自動取得しません。
@@ -19,19 +19,19 @@ prompts/get自体はGitHubへアクセスせず、取得ツールは既存4種�
 選択stateの保存だけでは次発言への伝達は保証されません。APIがない場合は参照付き質問をコピーする代案を示し、
 クリックが会話へ伝わったとは偽りません。native図がなければ未表示と明記します。
 [標準契約](docs/repository-review-workflow.md) と [短い入力の合成受入fixture](docs/examples/review-scenarios.json) を参照してください。
-このPRのoffline検証はlive GPT・native実画面の受入とは別です。公開済みReleaseはv0.4.0で、下記導入例もその版です。
+offline検証はlive GPT・native実画面の受入とは別です。以下はv0.5.0の導入例です。
 
 ## Codex プラグインとして導入
 
-Release の `github-work-inspector-plugin-v0.4.0-<TARGET>` archive と同名 `.sha256` を
+Release の `github-work-inspector-plugin-v0.5.0-<TARGET>` archive と同名 `.sha256` を
 取得して照合し、空の作業フォルダへ展開します。CLI 単体 archive とプラグイン archive は別です。
 SHA256 は破損検出で、配布元の署名認証ではありません。取得元はこの repo の versioned Release に固定してください。
 
 ```sh
 # Apple Silicon Mac の例。Windows は zip / Get-FileHash / Expand-Archive を使用
-sha256sum -c github-work-inspector-plugin-v0.4.0-aarch64-apple-darwin.tar.gz.sha256
+sha256sum -c github-work-inspector-plugin-v0.5.0-aarch64-apple-darwin.tar.gz.sha256
 # macOS の標準コマンドでは上行を shasum -a 256 -c に置換
-tar -xzf github-work-inspector-plugin-v0.4.0-aarch64-apple-darwin.tar.gz
+tar -xzf github-work-inspector-plugin-v0.5.0-aarch64-apple-darwin.tar.gz
 cd github-work-inspector
 python3 install-plugin.py
 codex plugin add github-work-inspector@personal-local --json
@@ -144,9 +144,9 @@ macOS / Linuxの例（タグとターゲットは使用するReleaseに合わせ
 ```sh
 mkdir gwi-download
 cd gwi-download
-gh release download v0.4.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
-shasum -a 256 -c github-work-inspector-v0.4.0-aarch64-apple-darwin.tar.gz.sha256
-tar -xzf github-work-inspector-v0.4.0-aarch64-apple-darwin.tar.gz
+gh release download v0.5.0 --repo iwashita-nozomu/github-work-inspector --pattern '*aarch64-apple-darwin*'
+shasum -a 256 -c github-work-inspector-v0.5.0-aarch64-apple-darwin.tar.gz.sha256
+tar -xzf github-work-inspector-v0.5.0-aarch64-apple-darwin.tar.gz
 ./github-work-inspector --version
 ./github-work-inspector install
 ~/.local/bin/github-work-inspector inspect OWNER/REPO --json
