@@ -26,4 +26,14 @@ for document in [m, json.loads((plugin/'.mcp.json').read_text(encoding="utf-8"))
     assert not set(server)-{'command','args','cwd','type'}
 assert 'allow_implicit_invocation: false' in (plugin/'skills/github-work-inspector-plugin/agents/openai.yaml').read_text(encoding="utf-8")
 assert (root/'.agents/skills/github-work-inspector/references/review-selection.js').read_bytes() == (plugin/'skills/github-work-inspector-plugin/references/review-selection.js').read_bytes()
+chat = root/'plugins/github-work-inspector-chat'
+chat_manifest = json.loads((chat/'plugin.json').read_text(encoding='utf-8'))
+assert chat_manifest['name'] == chat.name
+assert chat_manifest['$schema'] == a['$schema']
+assert chat_manifest['extensions']['com.openai']['apps'] == './.app.json'
+assert len(chat_manifest['extensions']['com.openai']['interface']['shortDescription']) <= 30
+assert not (chat/'mcp.json').exists() and not (chat/'.mcp.json').exists()
+assert (chat/'skills/github-repo-review-chat/references/review-selection.js').read_bytes() == (root/'.agents/skills/github-work-inspector/references/review-selection.js').read_bytes()
+# This dependency file is emitted only by package-chat.py with a verified app ID.
+assert not (chat/'.app.json').exists()
 print(json.dumps({'plugin':a['name'],'version':version,'offline_manifest_checks':'passed'}))

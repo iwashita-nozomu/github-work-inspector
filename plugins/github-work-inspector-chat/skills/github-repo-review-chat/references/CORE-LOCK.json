@@ -1,0 +1,17 @@
+{
+  "contract_version": "1.0.0",
+  "authored_files": {
+    "core/adapters/chat.md": "ed69b06ee1c0418d2ed371f324a7f8ddb1dbfad1519f6e286430a042fec5527c",
+    "core/adapters/work.md": "43936b740e61d1ff76180a0a978f4ba1b2e3e01574ccb5b56de96f094ed7c4fa",
+    "core/contract.json": "1c4ef26dc4e079432827e2730fc721245d41ccaf72647f7d0c358db81d72af54",
+    "core/entries/chat.md": "371e2014a263bfacfdc3b215199be77c235aecd80c87cb4a80e351ba4f4b7083",
+    "core/entries/work-cli.md": "8d0e0df2e5d9e75c6da369a1f7b016aaefacc21860fdfcbe0db8e7f19f53b611",
+    "core/entries/work-plugin.md": "7a08b98180ace435aef4fb98d56db9873b3a75f46e181cb493391e7cfea53bc8",
+    "core/normalize.js": "a34598b60e6ea9c88af3f99d98260d6b32928e2295d67f32269b6ff5a29353b0",
+    "core/observation.schema.json": "1432fb93bb3b8d1765bffb254567fd7d52a358fe7d334ce02a504846108ac958",
+    "core/selection.js": "9f9e4a48bc87b784be636baede7b1d47a2d19d25910a46e303973075b5938fd7",
+    "core/workflow.md": "63bd63719e53d40a49f941a115b506e14db985ee229fcf2d90af1cb77380bfcc"
+  },
+  "consistency_only_not_signature": true,
+  "core_digest": "8cae0ef21cfd01e11b6b1c07ce5e152d4cb53692dad01469a9caa6b483478cf3"
+}

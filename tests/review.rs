@@ -40,6 +40,24 @@ fn short_input_fixture_keeps_initial_history_separate_from_selected_patch() {
     )
     .unwrap();
     let observed = mcp::execute(initial, &mut api).unwrap();
+    let contract: Value =
+        serde_json::from_str(github_work_inspector::review::CORE_CONTRACT).unwrap();
+    assert_eq!(
+        observed["commit_details"]["review_core"]["contract_version"],
+        contract["contract_version"]
+    );
+    assert_eq!(
+        observed["commit_details"]["review_core"]["capabilities"],
+        contract["profiles"]["rust_gh"]
+    );
+    assert_eq!(
+        contract["profiles"]["chat_github"]["pre_model_redaction"],
+        false
+    );
+    assert_eq!(
+        contract["profiles"]["chat_github"]["commit_file_transfer_bounded"],
+        false
+    );
     assert!(observed["commit_details"]["patch"].is_null());
     assert!(!observed
         .to_string()

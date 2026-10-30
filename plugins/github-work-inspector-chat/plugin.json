@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "github-work-inspector-chat",
+  "version": "0.1.0",
+  "description": "A private Chat companion using the existing GitHub app and the same evidence/review core as the Work plugin.",
+  "author": {
+    "name": "iwashita-nozomu"
+  },
+  "homepage": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "repository": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "repository",
+    "review"
+  ],
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "displayName": "GitHub Inspector · Chat",
+        "shortDescription": "Git repo overview in Chat",
+        "longDescription": "Branch-purpose overview, selected history and evidence drill-down through the existing GitHub app. Shared core with Work; Rust execution and complete parent DAG are not assumed in Chat.",
+        "developerName": "iwashita-nozomu",
+        "category": "Productivity",
+        "capabilities": [],
+        "defaultPrompt": "このレポを見て"
+      }
+    }
+  }
+}
