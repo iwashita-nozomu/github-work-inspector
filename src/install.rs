@@ -10,6 +10,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const SKILL: &str = include_str!("../.agents/skills/github-work-inspector/SKILL.md");
 const POLICY: &str = include_str!("../.agents/skills/github-work-inspector/agents/openai.yaml");
+const SELECTION: &[u8] =
+    include_bytes!("../.agents/skills/github-work-inspector/references/review-selection.js");
 const NAME: &str = "github-work-inspector";
 const MANIFEST: &str = ".install.json";
 
@@ -37,6 +39,7 @@ fn sources() -> BTreeMap<String, Vec<u8>> {
     BTreeMap::from([
         ("SKILL.md".into(), SKILL.as_bytes().to_vec()),
         ("agents/openai.yaml".into(), POLICY.as_bytes().to_vec()),
+        ("references/review-selection.js".into(), SELECTION.to_vec()),
     ])
 }
 

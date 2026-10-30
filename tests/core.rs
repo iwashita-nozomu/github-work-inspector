@@ -296,6 +296,11 @@ fn install_update_uninstall_and_preserve_user_edits() {
     install::install_bytes(&binary, &skill, true, b"fixture-two").unwrap();
     assert_eq!(fs::read(&binary).unwrap(), b"fixture-two");
     fs::write(skill.join("SKILL.md"), "user-edited").unwrap();
+    assert!(
+        fs::read_to_string(skill.join("references/review-selection.js"))
+            .unwrap()
+            .contains("sendFollowUpMessage")
+    );
     assert!(install::install_bytes(&binary, &skill, true, b"fixture-three").is_err());
     assert!(install::uninstall(&binary, &skill).is_err());
     assert_eq!(

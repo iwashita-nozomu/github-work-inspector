@@ -29,6 +29,8 @@ jobs:
           persist-credentials: false
       - name: Plugin source installer regression
         run: python scripts/test-plugin-install.py
+      - name: Native selection bridge offline fixtures
+        run: node scripts/test-review-selection.cjs
       - name: Rust toolchain
         run: |
           rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --no-self-update

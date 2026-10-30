@@ -5,6 +5,12 @@
 以下は公開してよい合成fixture (`docs/examples/semantic-commit.json`) の例で、
 SHAもrepoも実在のGitHub根拠ではない。合成URLを実在する根拠リンクとして表示しない。
 
+## 初期図と選択後を分ける
+
+標準は[図内履歴からの選択](repository-review-workflow.md)。初期図は観測subject/file metadata由来の短い要約を図内に置き、patchは取得しない。
+利用者がcommit/fileを選択して追加質問した後だけ、次の選択patchの意味解釈を行う。代表fileの別枠自動解説にはしない。
+選択伝達はnative sendFollowUpMessageを用い、state保存だけで次発言へ届いたと扱わない。
+
 ## 十分な選択patchがある場合
 
 完全SHAは `9` が40桁、file index 0は `src/settings.rs`。取得hunkは
