@@ -10,6 +10,7 @@ fn help_version_and_static_argument_errors() {
         vec!["--help"],
         vec!["inspect", "--help"],
         vec!["install", "--help"],
+        vec!["commit", "--help"],
         vec!["--version"],
     ] {
         let out = cli().args(args).output().unwrap();
@@ -18,6 +19,15 @@ fn help_version_and_static_argument_errors() {
     }
     for args in [
         vec!["--json", "--unknown=synthetic-secret"],
+        vec!["commit", "example/project", "deadbee", "--json"],
+        vec![
+            "commit",
+            "example/project",
+            "deadbee",
+            "--file-index",
+            "3000",
+            "--json",
+        ],
         vec!["repo", "https://github.com/example/project", "--json"],
         vec!["inspect", "example/project", "--pages", "999", "--json"],
     ] {

@@ -65,6 +65,53 @@ pub fn human(value: &Value) -> String {
     if let Some(repo) = value.get("repository") {
         let _=writeln!(out,"{} ({})\n{}\ndefault branch: {}  stars: {}  forks: {}  open issues incl PRs: {}\nobserved {}",
             s(&repo["name_with_owner"]),s(&repo["visibility"]),s(&repo["url"]),s(&repo["default_branch"]),repo["stars"],repo["forks"],repo["open_issues"],s(&value["captured_at"]));
+    } else if let Some(details) = value.get("commit_details") {
+        let commit = &details["commit"];
+        let _ = writeln!(
+            out,
+            "{} commit {} {}\n{}\ncomparison: {} (parent-specific comparison not performed)",
+            s(&details["repository"]),
+            s(&commit["sha"]),
+            s(&commit["subject"]),
+            s(&commit["url"]),
+            s(&commit["comparison"]["kind"])
+        );
+        if let Some(files) = details["files"].as_array() {
+            for file in files {
+                let _ = writeln!(
+                    out,
+                    "  [{}] {} {}  +{} -{} (previous: {}; file-id: {})",
+                    file["index"],
+                    s(&file["status"]),
+                    s(&file["filename"]),
+                    file["additions"],
+                    file["deletions"],
+                    s(&file["previous_filename"]),
+                    s(&file["file_id"])
+                );
+            }
+        }
+        let _ = writeln!(
+            out,
+            "coverage: {}; has_more={}; next={}; partial={}",
+            s(&details["coverage"]["stopped_reason"]),
+            details["coverage"]["has_more"],
+            details["coverage"]["next_file_index"],
+            details["partial"]
+        );
+        if details["mode"] == "patch" {
+            if let Some(patch) = details["patch"]["text"].as_str() {
+                let _=writeln!(out,"Selected API patch (untrusted display text; truncated={}; API completeness not guaranteed):",details["patch"]["truncated"]);
+                out.push_str(patch);
+                out.push('\n');
+            } else {
+                let _ = writeln!(
+                    out,
+                    "Patch omitted: {}",
+                    s(&details["patch"]["omission_reason"])
+                );
+            }
+        }
     } else if let Some(snapshot) = value.get("snapshot") {
         let _ = writeln!(
             out,

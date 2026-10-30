@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use github_work_inspector::{
+    changes,
     client::{Api, Gh},
     envelope, error_envelope,
     inspect::{self, Limits},
@@ -29,6 +30,26 @@ struct Cli {
 enum Commands {
     /// Start the read-only MCP server on stdio (protocol-only stdout; no listening port).
     Mcp,
+    /// Read selected commit files or one bounded API patch. Full SHA required.
+    Commit {
+        repository: String,
+        sha: String,
+        #[arg(long,value_enum,default_value_t=changes::Mode::Files)]
+        mode: changes::Mode,
+        #[arg(long,default_value_t=0,value_parser=clap::value_parser!(u16).range(0..=2999))]
+        file_index: u16,
+        #[arg(
+            long,
+            help = "Opaque file_id returned by the commit file list; required for patch mode."
+        )]
+        file_id: Option<String>,
+        #[arg(long,default_value_t=10,value_parser=clap::value_parser!(u16).range(1..=20))]
+        limit: u16,
+        #[arg(long,default_value_t=120,value_parser=clap::value_parser!(u16).range(1..=400))]
+        patch_lines: u16,
+        #[arg(long,default_value_t=16384,value_parser=clap::value_parser!(u32).range(1..=65536))]
+        patch_bytes: u32,
+    },
     /// Read one repository's basic metadata.
     Repo { repository: String },
     /// Read bounded branches, commit DAG, issues, pull requests, and CI observations.
@@ -87,6 +108,31 @@ fn execute(cli: Cli) -> Result<(Value, i32)> {
     let mut api = Gh::new(cli.timeout_seconds, cli.budget_seconds);
     match cli.command {
         Commands::Mcp => unreachable!("MCP is dispatched before CLI result formatting"),
+        Commands::Commit {
+            repository,
+            sha,
+            mode,
+            file_index,
+            file_id,
+            limit,
+            patch_lines,
+            patch_bytes,
+        } => {
+            let repo = Repo::parse(&repository)?;
+            let options = changes::Options {
+                mode,
+                file_id,
+                file_index: file_index.into(),
+                limit: limit.into(),
+                patch_lines: patch_lines.into(),
+                patch_bytes: patch_bytes as usize,
+            };
+            let (value, partial) = changes::inspect(&mut api, &repo, &sha, &options)?;
+            Ok((
+                envelope("commit_details", value, !partial),
+                if partial { 3 } else { 0 },
+            ))
+        }
         Commands::Repo { repository } => {
             let repo = Repo::parse(&repository)?;
             let page = api.get(&repo.endpoint())?;
@@ -194,7 +240,7 @@ fn main() {
         Err(error) => {
             let code = if matches!(
                 error.code.as_str(),
-                "invalid_arguments" | "invalid_repository"
+                "invalid_arguments" | "invalid_repository" | "invalid_commit"
             ) {
                 2
             } else {

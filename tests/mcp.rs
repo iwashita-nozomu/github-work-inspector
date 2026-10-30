@@ -83,7 +83,7 @@ fn official_sdk_protocol_discovery_and_invalid_arguments() {
         s.send(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}));
         let response = s.response(2);
         let tools = response["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 3);
+        assert_eq!(tools.len(), 4);
         for tool in tools {
             assert_eq!(tool["annotations"]["readOnlyHint"], true);
             assert_eq!(tool["annotations"]["destructiveHint"], false);
@@ -238,6 +238,19 @@ fn stdio_metadata_fixture_and_input_frame_bound() {
         "example/project"
     );
     assert!(!result.to_string().contains("synthetic"));
+    let commit = json!({"sha":"a".repeat(40),"parents":[{"sha":"b".repeat(40)}],"commit":{"message":"fixture change"},"stats":{"additions":1,"deletions":1,"total":2},"files":[{"filename":"main.rs","status":"modified","additions":1,"deletions":1,"changes":2,"patch":"@@ -1 +1 @@\n-old\n+new"}]});
+    fs::write(&response, format!("HTTP/2.0 200 OK\n\n{commit}")).unwrap();
+    s.send(json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"repository_commit","arguments":{"repository":"example/project","sha":"a".repeat(40),"mode":"patch","file_index":2,"file_id":github_work_inspector::changes::file_id(&"a".repeat(40),"main.rs")}}}));
+    let response = s.response(4);
+    assert_eq!(response["result"]["isError"], false);
+    assert_eq!(
+        response["result"]["structuredContent"]["commit_details"]["files"][0]["index"],
+        2
+    );
+    assert_eq!(
+        response["result"]["structuredContent"]["commit_details"]["patch"]["text"],
+        "@@ -1 +1 @@\n-old\n+new"
+    );
     drop(s);
     fs::remove_dir_all(root).unwrap();
 }
