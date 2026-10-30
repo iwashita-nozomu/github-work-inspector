@@ -50,9 +50,10 @@
       "6666666666666666666666666666666666666666"
     ],
     "short_summary": {
-      "text": "待機時間の調整という著者の説明",
+      "text": "遅い要求を許容する変更という著者の説明",
       "basis": "commit_subject",
-      "patch_observed": false
+      "patch_observed": false,
+      "observed_subject": "Allow slower requests"
     },
     "file": {
       "filename": "src/settings.rs",
