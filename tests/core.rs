@@ -318,6 +318,79 @@ fn install_update_uninstall_and_preserve_user_edits() {
     fs::remove_dir_all(root).unwrap();
 }
 
+fn legacy_install(root: &std::path::Path, version: &str) -> (PathBuf, PathBuf) {
+    let binary = root.join("bin/tool");
+    let skill = root.join("skills/github-work-inspector");
+    install::install_bytes(&binary, &skill, false, b"legacy-fixture").unwrap();
+    fs::remove_file(skill.join("references/review-selection.js")).unwrap();
+    fs::remove_dir(skill.join("references")).unwrap();
+    let path = skill.join(".install.json");
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    manifest["version"] = json!(version);
+    manifest["files"]
+        .as_object_mut()
+        .unwrap()
+        .remove("references/review-selection.js");
+    fs::write(path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+    (binary, skill)
+}
+
+#[test]
+fn released_two_file_skills_upgrade_without_bypassing_hash_checks() {
+    for version in ["0.3.4", "0.4.0"] {
+        let root = temp();
+        let (binary, skill) = legacy_install(&root, version);
+        install::install_bytes(&binary, &skill, true, b"upgraded-fixture").unwrap();
+        assert_eq!(fs::read(&binary).unwrap(), b"upgraded-fixture");
+        assert!(skill.join("references/review-selection.js").is_file());
+        let manifest: Value =
+            serde_json::from_slice(&fs::read(skill.join(".install.json")).unwrap()).unwrap();
+        assert_eq!(manifest["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(manifest["files"].as_object().unwrap().len(), 3);
+        install::uninstall(&binary, &skill).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[test]
+fn legacy_upgrade_still_preserves_edits_extra_files_and_unknown_versions() {
+    for damage in [
+        "edited_skill",
+        "extra_file",
+        "edited_binary",
+        "unknown_version",
+    ] {
+        let root = temp();
+        let (binary, skill) = legacy_install(&root, "0.4.0");
+        match damage {
+            "edited_skill" => fs::write(skill.join("SKILL.md"), b"user-edit").unwrap(),
+            "extra_file" => fs::write(skill.join("user-note"), b"user-note").unwrap(),
+            "edited_binary" => fs::write(&binary, b"user-binary").unwrap(),
+            _ => {
+                let path = skill.join(".install.json");
+                let mut value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+                value["version"] = json!("9.9.9");
+                fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
+            }
+        }
+        let before_bin = fs::read(&binary).unwrap();
+        let before_skill = fs::read(skill.join("SKILL.md")).unwrap();
+        assert_eq!(
+            install::install_bytes(&binary, &skill, true, b"new")
+                .unwrap_err()
+                .code,
+            "install_conflict"
+        );
+        assert_eq!(fs::read(&binary).unwrap(), before_bin);
+        assert_eq!(fs::read(skill.join("SKILL.md")).unwrap(), before_skill);
+        assert!(!skill.join("references/review-selection.js").exists());
+        if damage == "extra_file" {
+            assert_eq!(fs::read(skill.join("user-note")).unwrap(), b"user-note");
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
 #[test]
 fn unrelated_files_and_symlinks_are_preserved() {
     let root = temp();

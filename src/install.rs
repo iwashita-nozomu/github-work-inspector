@@ -101,8 +101,17 @@ fn verify(binary: &Path, skill: &Path) -> Result<Manifest> {
     let manifest: Manifest =
         serde_json::from_slice(&bytes).map_err(|_| Error::new("install_conflict"))?;
     let expected = sources();
+    // Released 0.3.4/0.4.0 skills have two managed files. Only this exact legacy
+    // shape may migrate; binary/file hashes, symlinks and unexpected files are
+    // still checked below before any staging or replacement.
+    let legacy = matches!(manifest.version.as_str(), "0.3.4" | "0.4.0")
+        && manifest
+            .files
+            .keys()
+            .map(String::as_str)
+            .eq(["SKILL.md", "agents/openai.yaml"]);
     if manifest.binary != binary
-        || manifest.files.keys().ne(expected.keys())
+        || (!legacy && manifest.files.keys().ne(expected.keys()))
         || hash(&io(fs::read(binary))?) != manifest.binary_sha256
     {
         return Err(Error::new("install_conflict"));
