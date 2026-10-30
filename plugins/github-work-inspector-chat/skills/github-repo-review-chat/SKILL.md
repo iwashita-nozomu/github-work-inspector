@@ -3,7 +3,7 @@ name: github-repo-review-chat
 description: Chatで明示選択し、接続済みGitHubとWork共通の契約で枝の意味を俯瞰し、選択した根拠を深掘りする。
 ---
 
-<!-- Generated from core/; edit the authored source. Core digest: 8fa58d2408c46d8ac8e42d325680480f743312786daaaa1e97c4279fdeaf7f3b -->
+<!-- Generated from core/; edit the authored source. Core digest: 8cae0ef21cfd01e11b6b1c07ce5e152d4cb53692dad01469a9caa6b483478cf3 -->
 
 個人用Chatプラグイン。既存GitHub appを取得アダプタにし、下記のWork共通核を使う。
 RustやMacのlocal MCPを実行したとは扱わない。appの許可範囲はhostが管理し、このSkillはACLではない。

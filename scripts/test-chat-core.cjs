@@ -75,6 +75,9 @@ test('secret-like patches are omitted from display, UTF-8/line limits are bounde
   let d = core.normalizeChatCommit(x).commit_details; assert.equal(d.patch.text, null); assert.equal(d.patch.omission_reason, 'sensitive_display_content'); assert.equal(d.patch.pre_model_redaction, false);
   x.response.commit.files[0].patch = ('+' + '日'.repeat(200) + '\n').repeat(150);
   d = core.normalizeChatCommit(x).commit_details; assert.ok(Buffer.byteLength(d.patch.text, 'utf8') <= 16384); assert.ok(d.patch.text.split('\n').length <= 120); assert.equal(d.patch.truncated, true);
+  x.response.commit.files[0].patch = 'X'.repeat(600000);
+  d = core.normalizeChatCommit(x).commit_details; assert.equal(d.patch.text, null); assert.equal(d.patch.omission_reason, 'display_scan_limit');
+  x.response.commit.files = Array.from({ length: 3001 }, () => ({ filename: 'x' })); assert.throws(() => core.normalizeChatCommit(x));
 });
 
 test('Chat branch/path references are data, remain bound to the adapter and do not launch a call on selection', async () => {

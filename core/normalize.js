@@ -10,7 +10,7 @@
   const sha = (v) => typeof v === 'string' && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(v) ? v.toLowerCase() : fail();
   const time = (v) => typeof v === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?Z$/.test(v) && Number.isFinite(Date.parse(v)) ? v : fail();
   const optionalTime = (v) => { try { return time(v); } catch (_) { return null; } };
-  const clean = (s, limit = 240) => typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\b(?:gh[pousr]_[a-z\d_]+|github_pat_[a-z\d_]+)\b/ig, '[redacted]').replace(/\b(?:password|token|api_key)\s*[=:]\s*\S+/ig, '[redacted]').slice(0, limit) : '';
+  const clean = (s, limit = 240) => typeof s === 'string' ? s.slice(0, 8192).replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\b(?:gh[pousr]_[a-z\d_]+|github_pat_[a-z\d_]+)\b/ig, '[redacted]').replace(/\b(?:password|token|api_key)\s*[=:]\s*\S+/ig, '[redacted]').slice(0, limit) : '';
   const validPath = (v) => typeof v === 'string' && v.length > 0 && v.length <= 1024 && !v.startsWith('/') && !v.includes('\\') && !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(v) && !/\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])/i.test(v) && !v.split('/').some((p) => !p || p === '.' || p === '..');
   const validRef = (v) => validPath(v) && !/[\s~^:?*\[\]]/.test(v) && !v.includes('..') && !v.endsWith('.') && !v.endsWith('.lock');
   const id = (ref) => validRef(ref) ? 'ref/' + encodeURIComponent(ref) : fail();
@@ -70,7 +70,7 @@
   function normalizeChatCommit(input) {
     const repository = repo(input.repository), reference = sha(input.sha), captured = time(input.captured_at);
     const c = input.response?.commit;
-    if (!c || sha(c.sha) !== reference || !sameRepo(c.repository_full_name, repository) || !Array.isArray(c.files)) fail();
+    if (!c || sha(c.sha) !== reference || !sameRepo(c.repository_full_name, repository) || !Array.isArray(c.files) || c.files.length > 3000) fail();
     const selected = input.selected_path ?? null;
     if (selected !== null && !validPath(selected)) fail();
     const candidates = c.files.filter((f) => validPath(f.filename));
@@ -80,8 +80,11 @@
     let patch = null;
     if (chosen) {
       const raw = chosen.patch;
-      const sensitive = /(?:^|\/)\.(?:env|ssh|aws)(?:[/.]|$)|\.(?:pem|key)$/i.test(selected) || (typeof raw === 'string' && /\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:]|BEGIN [A-Z ]*PRIVATE KEY)/i.test(raw));
-      const reason = sensitive ? 'sensitive_display_content' : typeof raw !== 'string' || !raw ? 'connector_patch_unavailable_binary_large_or_not_provided' : raw.length > 512 * 1024 ? 'display_scan_limit' : null;
+      // Bound scanning before regex/display work; no unbounded uppercase-key expression.
+      const unavailable = typeof raw !== 'string' || !raw;
+      const tooLarge = !unavailable && raw.length > 512 * 1024;
+      const sensitive = !unavailable && !tooLarge && (/(?:^|\/)\.(?:env|ssh|aws)(?:[/.]|$)|\.(?:pem|key)$/i.test(selected) || /\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])/i.test(raw) || raw.includes('PRIVATE KEY'));
+      const reason = unavailable ? 'connector_patch_unavailable_binary_large_or_not_provided' : tooLarge ? 'display_scan_limit' : sensitive ? 'sensitive_display_content' : null;
       let text = null;
       if (!reason) {
         const safe = raw.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '');
