@@ -23,6 +23,11 @@ jobs:
       - run: cargo test --locked --offline
       - run: python scripts/licenses.py --check
       - run: python scripts/check-plugin.py
+      - name: Shared Work and Chat core conformance
+        run: |
+          python scripts/sync-review-core.py --check
+          node scripts/test-chat-core.cjs
+          python scripts/test-chat-package.py
       - name: Native selection bridge offline fixtures
         run: node scripts/test-review-selection.cjs
       - run: python scripts/test-plugin-install.py

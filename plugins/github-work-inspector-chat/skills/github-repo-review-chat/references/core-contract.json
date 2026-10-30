@@ -1,0 +1,54 @@
+{
+  "contract_version": "1.0.0",
+  "identity": {
+    "repository": "validated OWNER/REPO",
+    "commit": "full 40/64 hex SHA",
+    "branch": "repository + exact ref; tip nullable until observed",
+    "work_file": "repository + full SHA + observed file_id/index",
+    "chat_file": "repository + full SHA + exact repository path; never an invented file_id"
+  },
+  "limits": {
+    "branch_cards": 100,
+    "branch_pages": 2,
+    "recent_commits": 8,
+    "tip_resolutions": 2,
+    "selected_files": 1,
+    "display_patch_lines": 120,
+    "display_patch_bytes": 16384,
+    "selection_targets": 200
+  },
+  "profiles": {
+    "rust_gh": {
+      "runtime": "local Rust via existing gh",
+      "observed_parent_fields": true,
+      "branch_tip_sha_in_list": true,
+      "default_branch_metadata": true,
+      "commit_file_transfer_bounded": true,
+      "pre_model_redaction": true,
+      "native_js_required_for_interaction": true
+    },
+    "chat_github": {
+      "runtime": "host GPT with the existing GitHub app; optional native JavaScript view",
+      "observed_parent_fields": false,
+      "branch_tip_sha_in_list": false,
+      "default_branch_metadata": true,
+      "commit_file_transfer_bounded": false,
+      "pre_model_redaction": false,
+      "native_js_required_for_interaction": true
+    }
+  },
+  "rules": {
+    "empty_parents_means": "observed root only; unknown is null",
+    "edges": "explicit observed parent SHA only; never array order or compare merge-base",
+    "semantics": [
+      "author_claim",
+      "inference",
+      "unknown"
+    ],
+    "selection_click": "local state only",
+    "explicit_question": "feature-detected host bridge or manual copy; never direct network",
+    "scope": "user scope and host approvals take precedence"
+  },
+  "security_boundary": false,
+  "selection_schema": "urn:github-work-inspector:review-observation:1#/$defs/selectionReference"
+}

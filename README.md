@@ -2,7 +2,26 @@
 
 認可済みの任意の GitHub.com repo を、Codex から読み取り把握する Rust CLI・stdio MCP と
 明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
-通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
+Work版の通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
+
+## Chat companion と共有核（開発中）
+
+`core/` に正規化schema、capability定義、意味・根拠・選択の手順、純粋なview/selection JSを置きます。
+WorkとChatのSkill/参照資産は `python3 scripts/sync-review-core.py` で生成し、CIの `--check` で乖離を検出します。
+WorkのRustも同じcontract/profileを読み、snapshotと選択commitの `review_core` に取得能力を記録します。
+これは**共通のRust実行環境**ではありません。Chatは接続済みGitHub app、Workは既存gh/Rustが取得します。
+Chatの正規化JSはnative fragment等で実行可能な場合の共通参照実装で、通常のGPT turnにJS実行を保証しません。
+
+Chat用sourceは `plugins/github-work-inspector-chat`。private account登録向けだけで、独自MCP/serverやbinaryを
+含みません。既定枝はrepo metadata、枝検索は名前だけ、recent commitsは全枝の履歴ではありません。
+同一ref compareで観測tipを解決できても親一覧は得られず、完全DAGを作りません。fetch_commitにはfile/byte制限がなく、
+Workのfile限定転送・モデルへ渡す前の秘匿も適用されません。詳細は [Chatアダプタ](docs/chat-review-workflow.md)。
+
+`scripts/package-chat.py --out PACKAGE.zip --source-sha FULL_SHA --github-app-id VERIFIED_APP_ID` で、backendで確認した
+既存GitHub app IDだけを渡してprivate account ZIPを生成します。ID未指定では完成packageを作りません。
+`.app.json` はこの生成時だけ追加し、public directory用ZIPとは分離します。登録・公開・Mac設定変更は行いません。
+生成コピーを直接編集せずcore/を更新してください。共通digestは同期確認であり署名認証ではありません。
+source/fixtureの検証と、Chat登録・接続・native実画面・bridgeの受入は別段階です。現在のMac導入版はこのPRでは更新しません。
 
 ## ブランチ俯瞰から選択して深掘り（開発版 v0.6.0）
 

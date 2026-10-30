@@ -7,6 +7,14 @@ use rmcp::ErrorData;
 
 pub const PROMPT_NAME: &str = "review_repository";
 pub const WORKFLOW: &str = include_str!("../docs/repository-review-workflow.md");
+pub const CORE_CONTRACT: &str = include_str!("../core/contract.json");
+
+pub fn rust_provenance() -> serde_json::Value {
+    let contract: serde_json::Value = serde_json::from_str(CORE_CONTRACT)
+        .expect("shared core contract is validated in offline checks");
+    serde_json::json!({"contract_version":contract["contract_version"],"adapter":"rust_gh",
+        "capabilities":contract["profiles"]["rust_gh"]})
+}
 
 pub fn definition() -> Prompt {
     Prompt::new(

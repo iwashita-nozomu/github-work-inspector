@@ -467,6 +467,7 @@ pub fn snapshot(api: &mut impl Api, requested: &Repo, limits: &Limits) -> Result
     Ok((
         json!({
             "requested_repository": requested.0, "repository": meta, "repository_captured_at": meta_page.observed_at,
+            "review_core": crate::review::rust_provenance(),
             "started_at": started_at, "finished_at": now(), "atomic": false,
             "partial": partial, "inferences": [], "text_handling": "Untrusted text; controls removed, common credentials redacted, limited to 240 characters. PR body excerpts only; no full bodies or logs.",
             "branches": branches,

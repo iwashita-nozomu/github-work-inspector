@@ -112,6 +112,11 @@ fn default_branch_after_limit_on_same_page_is_kept_without_extra_get() {
     let mut api = fixture(json!(listed), None);
     let (snapshot, partial) = run(&mut api);
     assert!(!partial);
+    assert_eq!(snapshot["review_core"]["adapter"], "rust_gh");
+    assert_eq!(
+        snapshot["review_core"]["capabilities"]["observed_parent_fields"],
+        true
+    );
     assert_eq!(snapshot["branches"]["items"].as_array().unwrap().len(), 2);
     assert_eq!(snapshot["branch_overview"]["baseline"]["tip_sha"], sha('a'));
     assert_eq!(
