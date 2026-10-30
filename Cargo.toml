@@ -1,6 +1,6 @@
 [package]
 name = "github-work-inspector"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 description = "Bounded, read-only GitHub repository snapshots for Codex"
 publish = false
