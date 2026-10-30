@@ -181,7 +181,7 @@ pub fn repository(v: &Value) -> Result<Value> {
 
 pub fn branch(v: &Value) -> Result<Option<Value>> {
     Ok(Some(
-        json!({"name": text(string(v,"name")?), "sha": sha(string(&v["commit"],"sha")?)?, "protected": boolean(v,"protected")?}),
+        json!({"name": text(string(v,"name")?), "branch_id": crate::overview::branch_id(string(v,"name")?), "sha": sha(string(&v["commit"],"sha")?)?, "protected": boolean(v,"protected")?}),
     ))
 }
 pub fn commit(v: &Value) -> Result<Option<Value>> {
@@ -213,10 +213,18 @@ pub fn issue(v: &Value, repo: &Repo) -> Result<Option<Value>> {
 }
 pub fn pull(v: &Value, repo: &Repo) -> Result<Option<Value>> {
     let n = number(v, "number")?;
+    let head_repository = v["head"]["repo"]["full_name"]
+        .as_str()
+        .and_then(|name| Repo::parse(name).ok())
+        .map(|repo| repo.0);
+    let body_excerpt = v.get("body").and_then(Value::as_str).map(text);
     Ok(Some(
         json!({"number": n, "title": text(string(v,"title")?), "state": text(string(v,"state")?),
             "draft": boolean(v,"draft")?, "merged_at": date(v,"merged_at",true)?, "updated_at": date(v,"updated_at",false)?,
             "head_sha": sha(string(&v["head"],"sha")?)?, "head_branch": text(string(&v["head"],"ref")?),
+            "head_branch_id": crate::overview::branch_id(string(&v["head"],"ref")?),
+            "head_repository": head_repository, "body_excerpt": body_excerpt,
+            "body_excerpt_scope": "Sanitized/redacted excerpt, at most 240 characters plus ellipsis; may be missing. Author claims, not verified intent.",
             "base_branch": text(string(&v["base"],"ref")?), "url": format!("{}/pull/{n}",repo.url()),
         }),
     ))
@@ -283,17 +291,78 @@ pub fn snapshot(api: &mut impl Api, requested: &Repo, limits: &Limits) -> Result
             .ok_or_else(|| Error::new("invalid_response"))?,
     )?;
     let base = repo.endpoint();
-    let branches = list(
+    let mut default_tip = None;
+    let mut overview_inventory = Vec::new();
+    let branches_default = meta_page.data["default_branch"].as_str();
+    let mut branches = list(
         api,
         &format!("{base}/branches"),
         None,
         limits.branches,
         limits.pages,
-        branch,
+        |v| {
+            let parsed = branch(v)?;
+            if let Some(item) = &parsed {
+                if overview_inventory.len() < 100
+                    && !overview_inventory
+                        .iter()
+                        .any(|b: &Value| b["branch_id"] == item["branch_id"])
+                {
+                    overview_inventory.push(item.clone());
+                }
+            }
+            if v["name"].as_str() == branches_default && branches_default.is_some() {
+                default_tip = parsed.clone();
+            }
+            Ok(parsed)
+        },
     );
+    // Prefer the default branch only if seen on an already-fetched page. No extra GET.
+    if let Some(tip) = default_tip {
+        if !branches
+            .items
+            .iter()
+            .any(|b| b["branch_id"] == tip["branch_id"])
+        {
+            if let Some(last) = branches.items.last_mut() {
+                *last = tip;
+            }
+        }
+    }
+    let mut baseline_observation =
+        json!({"source":"branch_list","captured_at":branches.captured_at,"error":null});
+    if let Some(name) = branches_default.filter(|_| limits.branches > 0) {
+        let default_id = crate::overview::branch_id(name);
+        if !branches.items.iter().any(|b| b["branch_id"] == default_id) {
+            // One bounded fixed GET when alphabetic listing/pagination omitted the baseline.
+            let observed = crate::overview::default_branch_endpoint(&repo, name)
+                .and_then(|endpoint| api.get(&endpoint))
+                .and_then(|page| {
+                    let parsed =
+                        branch(&page.data)?.ok_or_else(|| Error::new("invalid_response"))?;
+                    if parsed["branch_id"] != default_id {
+                        return Err(Error::new("invalid_response"));
+                    }
+                    Ok((parsed, page.observed_at))
+                });
+            match observed {
+                Ok((tip, captured_at)) => {
+                    if branches.items.len() == limits.branches {
+                        branches.items.pop();
+                    }
+                    branches.items.push(tip);
+                    baseline_observation = json!({"source":"direct_branch_get","captured_at":captured_at,"error":null});
+                }
+                Err(error) => {
+                    baseline_observation =
+                        json!({"source":"direct_branch_get","captured_at":now(),"error":error});
+                }
+            }
+        }
+    }
     let mut branch_commits = Vec::new();
     let mut nodes = BTreeMap::new();
-    let mut partial = branches.error.is_some();
+    let mut partial = branches.error.is_some() || !baseline_observation["error"].is_null();
     for tip in &branches.items {
         let commits = list(
             api,
@@ -307,7 +376,7 @@ pub fn snapshot(api: &mut impl Api, requested: &Repo, limits: &Limits) -> Result
         for node in &commits.items {
             nodes.insert(node["sha"].as_str().unwrap().to_string(), node.clone());
         }
-        branch_commits.push(json!({"branch": tip["name"], "tip": tip["sha"], "commits": commits}));
+        branch_commits.push(json!({"branch": tip["name"], "branch_id": tip["branch_id"], "tip": tip["sha"], "commits": commits}));
     }
     let boundary: BTreeSet<String> = nodes
         .values()
@@ -369,12 +438,39 @@ pub fn snapshot(api: &mut impl Api, requested: &Repo, limits: &Limits) -> Result
         partial |= checks.error.is_some() || statuses.error.is_some();
         pull_checks.push(json!({"pull_number": pr["number"], "head_sha": head, "checks": checks, "statuses": statuses}));
     }
+    // Listing responses already contain up to 100 names/tips. Keep their overview
+    // without multiplying history/diff requests by the inventory size.
+    for item in &branches.items {
+        if !overview_inventory
+            .iter()
+            .any(|b| b["branch_id"] == item["branch_id"])
+        {
+            if overview_inventory.len() == 100 {
+                overview_inventory.pop();
+            }
+            overview_inventory.push(item.clone());
+        }
+    }
+    let overview_branches = Section {
+        items: overview_inventory,
+        ..branches.clone()
+    };
+    let branch_overview = crate::overview::build(
+        &repo,
+        branches_default,
+        &baseline_observation,
+        &overview_branches,
+        &branch_commits,
+        &nodes,
+        &pulls,
+    );
     Ok((
         json!({
             "requested_repository": requested.0, "repository": meta, "repository_captured_at": meta_page.observed_at,
             "started_at": started_at, "finished_at": now(), "atomic": false,
-            "partial": partial, "inferences": [], "text_handling": "Untrusted text; controls removed, common credentials redacted, limited to 240 characters. No bodies or logs.",
+            "partial": partial, "inferences": [], "text_handling": "Untrusted text; controls removed, common credentials redacted, limited to 240 characters. PR body excerpts only; no full bodies or logs.",
             "branches": branches,
+            "branch_overview": branch_overview,
             "dag": {"nodes": nodes.into_values().collect::<Vec<_>>(), "outside_window_parents": boundary,
                 "per_branch": branch_commits, "edge_direction": "child_to_parent", "ordering": "sha", "bounded": true},
             "issues": issues, "pull_requests": pulls, "workflow_runs": runs,

@@ -3,6 +3,7 @@ pub mod client;
 pub mod inspect;
 pub mod install;
 pub mod mcp;
+pub mod overview;
 pub mod render;
 pub mod review;
 

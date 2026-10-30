@@ -1,0 +1,129 @@
+{
+  "synthetic_only": true,
+  "evaluation_limit": "Golden host acceptance and offline DOM/dataflow fixtures, not live GPT interpretation or native Chat/Work UI acceptance.",
+  "user_request": "このレポを見て",
+  "selected_repository": "example/project",
+  "overview": {
+    "items": [
+      {
+        "branch_id": "f5589c7889dcfc9e64d59d576eec40aa900fd03252b9f90609b0ab9559137013",
+        "name": "stable/release",
+        "tip_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "comparison": {
+          "relation": "same_tip"
+        },
+        "history": {
+          "coverage": {
+            "fully_enumerated": true,
+            "stopped_reason": "end",
+            "items_seen": 2,
+            "pages_fetched": 1
+          },
+          "commit_shas": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "related_pull_requests": []
+      },
+      {
+        "branch_id": "6e8758f5a132190ce978aa12384c8e2a1f458bb32b85d95e3cbdc0a7a126da9b",
+        "name": "experiment/timeout",
+        "tip_sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "comparison": {
+          "relation": "unknown_in_bounded_graph"
+        },
+        "history": {
+          "coverage": {
+            "fully_enumerated": false,
+            "stopped_reason": "limit",
+            "items_seen": 100,
+            "pages_fetched": 1
+          },
+          "commit_shas": [
+            "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          ]
+        },
+        "related_pull_requests": [
+          {
+            "pull": {
+              "number": 9,
+              "title": "Explore slow request handling",
+              "body_excerpt": "Compare timeout choices in a controlled experiment.",
+              "state": "closed",
+              "merged_at": "2026-01-01T00:00:00Z",
+              "base_branch": "stable/release"
+            },
+            "head_matches_tip": false
+          }
+        ]
+      }
+    ],
+    "baseline": {
+      "name": "stable/release",
+      "tip_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "branch_coverage": {
+      "fully_enumerated": false,
+      "stopped_reason": "limit",
+      "items_seen": 100,
+      "pages_fetched": 1
+    },
+    "pull_coverage": {
+      "fully_enumerated": false,
+      "stopped_reason": "limit",
+      "items_seen": 100,
+      "pages_fetched": 1
+    },
+    "branches_captured_at": "2026-01-01T00:00:00Z"
+  },
+  "summaries": [
+    {
+      "branch_id": "6e8758f5a132190ce978aa12384c8e2a1f458bb32b85d95e3cbdc0a7a126da9b",
+      "tip_sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "purpose": {
+        "text": "待ち時間を扱う実験という著者の説明",
+        "kind": "author_claim",
+        "evidence": [
+          "pull/9"
+        ]
+      },
+      "difference": {
+        "text": "時間制御の検証に焦点がある可能性",
+        "kind": "inference",
+        "evidence": [
+          "commit/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        ]
+      }
+    }
+  ],
+  "acceptance_cases": [
+    {
+      "case": "before_selection",
+      "expected": "Both branch purposes/differences visible; default-branch baseline and sampling shown; no dropdown-only entry; no initial branch chosen; zero patch requests."
+    },
+    {
+      "case": "branch_selection",
+      "expected": "Only local history switches; old commit/file selection cleared; zero tool calls or new turns."
+    },
+    {
+      "case": "selected_file_question",
+      "expected": "Existing immutable SHA/file_id/index binding and explicit host confirmation remain required."
+    },
+    {
+      "case": "default_outside_page_or_cap",
+      "expected": "Prefer observed repository default_branch, at most one extra encoded fixed GET; branch/history cap unchanged; missing baseline shown explicitly."
+    },
+    {
+      "case": "old_merged_or_fork_pr",
+      "expected": "Head identity/repo and current tip checked; merged PR is no proof of current-tip integration."
+    },
+    {
+      "case": "subject_only_or_missing_patch",
+      "expected": "Author claim/inference/unknown labelled; no asserted fix, completed experiment or effect without evidence."
+    },
+    {
+      "case": "normal_chat_without_mcp",
+      "expected": "Dedicated plugin unexecuted; disclose actual source and native/selection limits, never count connector PR table as plugin/render success."
+    }
+  ]
+}

@@ -4,9 +4,9 @@
 明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
 通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
 
-## 図内履歴から選択して深掘り（v0.5.1）
+## ブランチ俯瞰から選択して深掘り（開発版 v0.6.0）
 
-プラグインを明示選択し「このレポを見て」と頼むと、ホストGPTはbranch/commit/変更fileと短い要約を
+プラグインを明示選択し「このレポを見て」と頼むと、ホストGPTは枝の意味の俯瞰から、branch/commit/変更fileと短い要約を
 会話内のnative図へまとめます。初回は最大2commit・各5fileのmetadataまでで、patchを自動取得しません。
 図で変更を選び「詳しく聞く」と、完全SHA/file_idを含む質問をnative hostへ渡し、必要な選択diffだけを
 根拠に説明します。選択だけでは取得や新しい会話を開始しません。「一覧だけ」「図だけ」「差分不要」を優先します。
@@ -19,7 +19,8 @@ prompts/get自体はGitHubへアクセスせず、取得ツールは既存4種�
 選択stateの保存だけでは次発言への伝達は保証されません。APIがない場合は参照付き質問をコピーする代案を示し、
 クリックが会話へ伝わったとは偽りません。native図がなければ未表示と明記します。
 [標準契約](docs/repository-review-workflow.md) と [短い入力の合成受入fixture](docs/examples/review-scenarios.json) を参照してください。
-offline検証はlive GPT・native実画面の受入とは別です。以下はv0.5.1の導入例です。
+offline検証はlive GPT・native実画面の受入とは別です。ソース版v0.6.0は公開配布前です。
+以下は公開済みv0.5.1の導入例で、新しいブランチ俯瞰は含みません。
 
 ## Codex プラグインとして導入
 
@@ -88,6 +89,19 @@ Python版はRust版に置換しました。`python -m github_work_inspector` は
 人向け表示はbranchのtip、`child -> parents` のDAG、Issue/PRの状態とCIを表示します。
 DAGはSHA順で、親が取得範囲外なら `?` を付けます。時系列・topological順とは限りません。
 branch間で重複するcommitを統合し、各branchの取得範囲と打切りを記録します。
+
+開発中のブランチ俯瞰では、取得済み一覧の最大100枝を履歴標本（4枝程度）と分け、各枝の目的・他枝との違い・関連PR・統合の観測を図内カードで先に
+比べ、枝の履歴、選択commit/fileの詳細へ進みます。GPTの説明は根拠と著者説明/推定/不明を分けます。
+比較基準は `repository.default_branch` と観測tipを常時表示し、mainに固定しません。
+一覧の件数・ページ外の既定枝は最大1回の固定GETで確保し、失敗も明記します。採用枝/commit上限は増やしません。
+PR本文は秘匿/短縮した240文字の抜粋のみ。有限DAGの経路欠落やmerged PRから現在tipの統合を断定せず、
+全枝のdiffやahead/behindは取得しません。[標準手順](docs/repository-review-workflow.md) を参照。
+これはソース/fixtureで検証する変更で、通常Chatの専用MCP・native表示・選択連携対応は未検証です。
+専用toolが利用できない場合は未実行と示し、connectorへの代替をプラグインや図示の成功に数えません。
+主な対象はWorkのローカルCodex環境です。通常ChatのVisualize表示対応とlocal stdio MCPの公開は別条件で、
+このlocal marketplace構成の通常Chat対応は未確認です。Workでもホスト上のtoolsとnative機能を確認します。
+component APIの存在はVisualize fragmentへの `sendFollowUpMessage` 公開を保証しません。
+存在確認・失敗時の手動コピー質問を維持し、Chatで永久に利用不能とも断定しません。
 
 ## 選択した commit → file → diff
 

@@ -251,6 +251,7 @@ fn partial_snapshot_preserves_other_sections() {
     let mut api = Fake::new(vec![page(metadata(), false)]);
     for code in [
         "access_denied",
+        "access_denied", // separate bounded default-branch observation
         "timeout",
         "budget_exhausted",
         "rate_limited",

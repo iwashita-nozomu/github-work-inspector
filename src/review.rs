@@ -11,13 +11,13 @@ pub const WORKFLOW: &str = include_str!("../docs/repository-review-workflow.md")
 pub fn definition() -> Prompt {
     Prompt::new(
         PROMPT_NAME,
-        Some("Review an explicitly selected repository: in-graph branch/commit/file history first, then user-selected diff drill-down. User scope and host approvals take precedence; fetching this template performs no GitHub requests."),
+        Some("Review an explicitly selected repository: evidence-backed branch-purpose overview with the observed default-branch baseline, then branch history and user-selected diff drill-down. Host availability, user scope and approvals take precedence; fetching this template performs no GitHub requests."),
         Some(vec![
             PromptArgument::new("repository")
                 .with_description("Explicit GitHub.com OWNER/REPO, not a URL, path, or inferred target.")
                 .with_required(true),
             PromptArgument::new("scope")
-                .with_description("overview (default): in-graph history, bounded file metadata, no patch until user selection; graph_only: no file requests; list_only: no graph or diff requests.")
+                .with_description("overview (default): branch-purpose cards, then in-graph history, bounded file metadata, no patch until user selection; graph_only: no file requests; list_only: no graph or diff requests.")
                 .with_required(false),
         ]),
     )
@@ -55,7 +55,7 @@ pub fn get(request: GetPromptRequestParams) -> Result<GetPromptResult, ErrorData
     let scope_instruction = match scope {
         "graph_only" => "図のみ。repository_commit を呼ばず、代表fileとdiffを取得しない。",
         "list_only" => "一覧のみ。図を描かず、repository_commit を呼ばず、diffを取得しない。",
-        _ => "標準レビュー: 図内に変更履歴と短い要約を置き、利用者の選択・追加質問後だけ実diffを深掘りする。",
+        _ => "標準レビュー: 既定枝を基準に各枝の目的・違い・観測状態を俯瞰し、枝の履歴を図内で選び、追加質問後だけ実diffを深掘りする。",
     };
     Ok(GetPromptResult::new(vec![PromptMessage::new_text(
         Role::User,
