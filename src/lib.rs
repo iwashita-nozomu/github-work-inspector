@@ -4,6 +4,7 @@ pub mod inspect;
 pub mod install;
 pub mod mcp;
 pub mod render;
+pub mod review;
 
 use chrono::{SecondsFormat, Utc};
 use regex::Regex;

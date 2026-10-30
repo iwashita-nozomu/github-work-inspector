@@ -1,6 +1,6 @@
 {
   "name": "github-work-inspector",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Read-only GitHub repository progress through a local Rust stdio MCP server.",
   "author": {
     "name": "iwashita-nozomu",
@@ -20,10 +20,10 @@
   "interface": {
     "displayName": "GitHub Work Inspector",
     "shortDescription": "Read GitHub repo progress",
-    "longDescription": "Read-only GitHub.com repository metadata, bounded branch/commit DAG and Issue/PR/CI observations through existing gh authentication.",
+    "longDescription": "Read-only GitHub history in native conversation diagrams, with in-graph change summaries and user-selected evidence-backed diff drill-down.",
     "developerName": "iwashita-nozomu",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Inspect an authorized GitHub repository and explain missing data."
+    "defaultPrompt": "このレポを見て"
   }
 }

@@ -57,6 +57,7 @@ impl Session {
             "github-work-inspector"
         );
         assert!(reply["result"]["capabilities"].get("tools").is_some());
+        assert!(reply["result"]["capabilities"].get("prompts").is_some());
         assert!(reply["result"]["capabilities"].get("resources").is_none());
         self.send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
     }
@@ -119,6 +120,50 @@ fn official_sdk_protocol_discovery_and_invalid_arguments() {
             response["result"]["structuredContent"]["error"]["code"],
             "gh_unavailable"
         );
+    }
+}
+
+#[test]
+fn prompt_discovery_scope_and_sanitized_errors_without_github() {
+    for version in ["2025-11-25", "2026-07-28"] {
+        let mut process = command();
+        process.env("PATH", "");
+        let mut s = Session::start(process);
+        s.initialize(version);
+        s.send(json!({"jsonrpc":"2.0","id":20,"method":"prompts/list"}));
+        let list = s.response(20);
+        assert_eq!(list["result"]["prompts"].as_array().unwrap().len(), 1);
+        assert_eq!(list["result"]["prompts"][0]["name"], "review_repository");
+        assert!(list["result"].get("nextCursor").is_none());
+        for (id, scope) in [(21, "overview"), (22, "graph_only"), (23, "list_only")] {
+            s.send(json!({"jsonrpc":"2.0","id":id,"method":"prompts/get","params":{"name":"review_repository","arguments":{"repository":"example/project","scope":scope}}}));
+            let reply = s.response(id);
+            assert_eq!(reply["result"]["messages"][0]["role"], "user");
+            let text = reply["result"]["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap();
+            assert!(text.contains(&format!("選択scope: {scope}")));
+            assert!(text.ends_with(github_work_inspector::review::WORKFLOW));
+            assert!(reply["result"].get("snapshot").is_none());
+        }
+        for (i, params) in [
+            json!({"name":"review_repository"}),
+            json!({"name":"review_repository","arguments":{"repository":"example/project","scope":"raw_shell"}}),
+            json!({"name":"review_repository","arguments":{"repository":"example/project","extra":"fixture-private-value"}}),
+            json!({"name":"review_repository","arguments":{"repository":"https://fixture-private-value"}}),
+            json!({"name":"fixture-private-value","arguments":{"repository":"example/project"}}),
+            json!({"name":"review_repository","arguments":{"repository":"example/project"},"requestState":"fixture-private-value"}),
+        ].into_iter().enumerate() {
+            let id = 30+i as u64;
+            s.send(json!({"jsonrpc":"2.0","id":id,"method":"prompts/get","params":params}));
+            let reply = s.response(id);
+            assert_eq!(reply["error"]["code"], -32602);
+            assert!(!reply.to_string().contains("fixture-private-value"));
+        }
+        s.send(json!({"jsonrpc":"2.0","id":40,"method":"prompts/list","params":{"cursor":"fixture-private-value"}}));
+        let reply = s.response(40);
+        assert_eq!(reply["error"]["code"], -32602);
+        assert!(!reply.to_string().contains("fixture-private-value"));
     }
 }
 

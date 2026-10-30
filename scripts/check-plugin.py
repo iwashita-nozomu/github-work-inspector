@@ -14,6 +14,8 @@ assert a['version'] == b['version'] == version
 assert a['$schema'] == 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 assert len(b['interface']['shortDescription']) <= 30 and b['interface']['capabilities'] == []
 assert b['mcpServers'] == './.mcp.json' and b['skills'] == './skills/'
+assert a['extensions']['com.openai']['interface'] == b['interface']
+assert b['interface']['defaultPrompt'] == 'このレポを見て'
 m = json.loads((plugin/'mcp.json').read_text())
 assert m['$schema'] == 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
 for document in [m, json.loads((plugin/'.mcp.json').read_text())]:
@@ -23,4 +25,5 @@ for document in [m, json.loads((plugin/'.mcp.json').read_text())]:
     assert server['args'] == ['mcp'] and server['cwd'] == '${PLUGIN_ROOT}'
     assert not set(server)-{'command','args','cwd','type'}
 assert 'allow_implicit_invocation: false' in (plugin/'skills/github-work-inspector-plugin/agents/openai.yaml').read_text()
+assert (root/'.agents/skills/github-work-inspector/references/review-selection.js').read_bytes() == (plugin/'skills/github-work-inspector-plugin/references/review-selection.js').read_bytes()
 print(json.dumps({'plugin':a['name'],'version':version,'offline_manifest_checks':'passed'}))

@@ -4,6 +4,23 @@
 明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
 通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
 
+## 図内履歴から選択して深掘り（開発版0.5.0）
+
+プラグインを明示選択し「このレポを見て」と頼むと、ホストGPTはbranch/commit/変更fileと短い要約を
+会話内のnative図へまとめます。初回は最大2commit・各5fileのmetadataまでで、patchを自動取得しません。
+図で変更を選び「詳しく聞く」と、完全SHA/file_idを含む質問をnative hostへ渡し、必要な選択diffだけを
+根拠に説明します。選択だけでは取得や新しい会話を開始しません。「一覧だけ」「図だけ」「差分不要」を優先します。
+
+この標準はpackaged Skill、MCP initialize.instructions、tools/listの説明に実装しています。
+明示取得用のMCP prompt `review_repository` も提供します（repository必須、scopeはoverview/graph_only/list_only）。
+prompts/get自体はGitHubへアクセスせず、取得ツールは既存4種類のままです。
+
+選択橋渡しはfeature-detectした `window.openai.sendFollowUpMessage` を使い、hostの確認を待ちます。
+選択stateの保存だけでは次発言への伝達は保証されません。APIがない場合は参照付き質問をコピーする代案を示し、
+クリックが会話へ伝わったとは偽りません。native図がなければ未表示と明記します。
+[標準契約](docs/repository-review-workflow.md) と [短い入力の合成受入fixture](docs/examples/review-scenarios.json) を参照してください。
+このPRのoffline検証はlive GPT・native実画面の受入とは別です。公開済みReleaseはv0.4.0で、下記導入例もその版です。
+
 ## Codex プラグインとして導入
 
 Release の `github-work-inspector-plugin-v0.4.0-<TARGET>` archive と同名 `.sha256` を

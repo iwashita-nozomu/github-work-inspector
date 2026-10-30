@@ -23,4 +23,6 @@ jobs:
       - run: cargo test --locked --offline
       - run: python scripts/licenses.py --check
       - run: python scripts/check-plugin.py
+      - name: Native selection bridge offline fixtures
+        run: node scripts/test-review-selection.cjs
       - run: python scripts/test-plugin-install.py
