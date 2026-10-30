@@ -19,7 +19,7 @@ parser.add_argument("--target", required=True, choices=[
 parser.add_argument("--binary", required=True, type=Path)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-version = tomllib.loads((root / "Cargo.toml").read_text())["package"]["version"]
+version = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
 binary = args.binary.resolve()
 reported = subprocess.run([str(binary), "--version"], capture_output=True, timeout=10)
 assert reported.returncode == 0 and reported.stdout.decode().strip() == f"github-work-inspector {version}", "Binary version differs from source manifest"
@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory(prefix="gwi-plugin-package-") as directory:
     executable = "github-work-inspector.exe" if args.target.endswith("msvc") else "github-work-inspector"
     shutil.copy2(binary, plugin / "bin" / executable)
     for filename in ["mcp.json", ".mcp.json"]:
-        document = json.loads((plugin / filename).read_text())
+        document = json.loads((plugin / filename).read_text(encoding="utf-8"))
         document["mcpServers"]["github-work-inspector"]["command"] = "./bin/" + executable
         (plugin / filename).write_text(json.dumps(document, indent=2) + "\n")
     files = {path.relative_to(plugin).as_posix():hashlib.sha256(path.read_bytes()).hexdigest()

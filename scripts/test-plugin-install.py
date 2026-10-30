@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import runpy
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,6 +14,15 @@ from unittest.mock import patch
 
 
 class SourceInstallation(unittest.TestCase):
+    def test_utf8_manifests_do_not_depend_on_the_windows_default_encoding(self):
+        original = Path.read_text
+        def windows_default(path, *args, **kwargs):
+            if not args and kwargs.get('encoding') is None:
+                kwargs['encoding'] = 'cp1252'
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', windows_default):
+            runpy.run_path(str(Path(__file__).with_name('check-plugin.py')), run_name='__main__')
+
     def test_preserves_marketplace_and_edits_even_with_optimized_python(self):
         with tempfile.TemporaryDirectory(prefix='gwi-plugin-test-') as temporary:
             root = Path(temporary)
@@ -20,7 +30,7 @@ class SourceInstallation(unittest.TestCase):
             bundle.mkdir()
             home.mkdir()
             shutil.copyfile(Path(__file__).with_name('install-plugin.py'), bundle/'install-plugin.py')
-            (bundle/'plugin.json').write_text(json.dumps({'name':'github-work-inspector','version':'1.0.0'}))
+            (bundle/'plugin.json').write_text(json.dumps({'name':'github-work-inspector','version':'1.0.0','description':'このレポを見て'}, ensure_ascii=False), encoding='utf-8')
             files = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in bundle.iterdir()}
             (bundle/'plugin-files.json').write_text(json.dumps({'name':'github-work-inspector','version':'1.0.0','files':files}))
             market = home/'.agents/plugins/marketplace.json'

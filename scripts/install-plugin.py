@@ -15,7 +15,7 @@ def require(condition, message):
         raise ValueError(message)
 
 def verify(root):
-    manifest = json.loads((root / 'plugin-files.json').read_text())
+    manifest = json.loads((root / 'plugin-files.json').read_text(encoding="utf-8"))
     require(manifest['name'] == NAME and re.fullmatch('\\d+\\.\\d+\\.\\d+', manifest['version']), 'Plugin validation failed')
     expected = manifest['files']
     actual = set()
@@ -29,7 +29,7 @@ def verify(root):
     require(actual == set(expected) | {'plugin-files.json'}, 'Unexpected or missing plugin file')
     for relative in expected:
         require(not Path(relative).is_absolute() and '..' not in Path(relative).parts, 'Plugin validation failed')
-    require(json.loads((root / 'plugin.json').read_text())['version'] == manifest['version'], 'Plugin validation failed')
+    require(json.loads((root / 'plugin.json').read_text(encoding="utf-8"))['version'] == manifest['version'], 'Plugin validation failed')
     return manifest
 
 def safe_path(home, path):
