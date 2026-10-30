@@ -35,10 +35,11 @@ or combined commit-status `state` when present, not a synthesized rollup.
 Snapshot keys: requested/canonical repository, `repository_captured_at`,
 `started_at`, `finished_at`, `atomic: false`, `partial`, `inferences: []`,
 `text_handling`, `branches`, `dag`, `issues`, `pull_requests`, `workflow_runs`,
-`pull_checks`. A root failure gives exit 1. Section errors give exit 3 and `ok:false`.
+`pull_checks`, `branch_overview`. A root failure gives exit 1. Section/default-branch lookup errors give exit 3 and `ok:false`.
 Expected scope limits alone give exit 0; they do not imply full coverage.
 
-- branch: `name`, `sha`, `protected`.
+- branch: `name`, `branch_id` (SHA256 of original exact branch name), `sha`, `protected`.
+  Display names are sanitized/truncated; identities are not derived from those labels.
 - DAG node: `sha`, `parents`, sanitized first-line `subject`, `committed_at`.
   `dag.nodes` is deduplicated and SHA sorted. `outside_window_parents` enumerates
   observed parent SHAs absent from nodes. `per_branch` records branch/tip and its
@@ -46,8 +47,10 @@ Expected scope limits alone give exit 0; they do not imply full coverage.
   parent node is not an assertion that the parent is absent from GitHub.
 - Issue: `number`, `title`, `state`, nullable `state_reason`, `updated_at`, `url`.
 - PR: `number`, `title`, `state`, `draft`, nullable `merged_at`, `updated_at`,
-  `head_sha`, `head_branch`, `base_branch`, `url`. A closed PR with null merged date
-  must not be reported as merged.
+  `head_sha`, `head_branch`, `head_branch_id`, nullable `head_repository`, `base_branch`, `url`,
+  nullable `body_excerpt` and its scope. The excerpt uses the existing text redaction,
+  control removal and 240-character bound (plus ellipsis); it is untrusted author data,
+  not the full body or verified intent. A closed PR with null merged date must not be reported as merged.
 - workflow run: `id`, nullable `name`, `status`, nullable `conclusion`, `head_sha`,
   nullable `head_branch`, `event`, `created_at`, `updated_at`, `url`.
 - `pull_checks.items`: `pull_number`, `head_sha`, `checks`, `statuses`.
@@ -61,6 +64,42 @@ latest successful page observation, or an attempt timestamp when none succeeded.
 Text may be redacted/truncated; it is not suitable for reconstructing original
 content. New additive fields may appear within v1. Breaking field/type/semantic
 changes require a new schema version.
+
+## Branch overview evidence (additive v1)
+
+`branch_overview` contains `items`, `baseline`, independent branch/PR coverage,
+errors and observation timestamps, selection scope, `atomic:false`, `inferences:[]`.
+Each item has exact `branch_id` and `tip_sha`, sampled `tip_commit`/`history`,
+`comparison`, and sampled `related_pull_requests`. Host GPT supplies purpose and
+differences separately; Rust does not generate semantic claims or infer branch families.
+The overview inventory retains at most 100 names/tips already seen on fetched list pages,
+independently of the smaller `branches` history-sample limit. `history_branch_count`
+states how many bounded histories were requested; `history:null` means tip/list data
+only. The overview does not fetch histories or patches for every listed branch.
+`history.commit_shas` references the existing `dag.nodes`/`dag.per_branch` observations
+without duplicating the full DAG; coverage/error/time remain attached to that history.
+
+The repository's observed `default_branch` is preferred within already-fetched
+branch pages. If missing and branches were requested, one fixed GET of the encoded
+default branch is attempted, replacing the last sampled branch when the cap is full.
+This never raises the requested branch count or per-branch commit/page limits.
+`baseline.observation` gives its source/time/error. No request is made for a null
+default branch or `branches=0`. Listing coverage remains coverage of the list endpoint;
+the extra GET does not mean intervening pages or omitted branches were fetched.
+The baseline is shown even when its tip is unavailable.
+
+Comparison relations are `same_tip`, `branch_tip_reachable_from_baseline`,
+`baseline_tip_reachable_from_branch`, `baseline_unobserved`, or
+`unknown_in_bounded_graph`. Only positive paths use actual observed parent edges,
+returned as `child_to_parent_evidence_path`; missing paths prove nothing outside
+the finite DAG. `unmerged_changes:not_determined` and `ahead_behind:not_queried`
+are intentional: no compare API, merge-base or content/squash/cherry-pick test occurs.
+Related PRs require both exact branch identity and a matching canonical head repo;
+forks/deleted or missing head repos are excluded. `head_matches_tip` distinguishes
+stale PR heads. A merged PR alone never certifies current-tip integration.
+
+API contracts: [branches](https://docs.github.com/en/rest/branches/branches),
+[pull requests](https://docs.github.com/en/rest/pulls/pulls#list-pull-requests).
 
 ## Selected commit/file (0.4.0)
 

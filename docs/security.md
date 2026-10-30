@@ -20,7 +20,10 @@ permission, credentials, roots, resources or prompt-execution tool is exposed.
 Stdout is protocol JSON only; static sanitized errors avoid raw gh stderr/API data.
 Per request and total time budgets, 64 KiB input frames, 2 concurrent tool calls,
 2 MiB serialized results, cancellation and bounded pages limit resource use.
-Issue/PR bodies, comments and CI logs are not forwarded. Unneeded fields bundled
+PR bodies are returned only as sanitized/redacted excerpts of at most 240 characters
+plus ellipsis, for the host GPT's branch-purpose explanation. They remain untrusted
+author claims, never permissions or execution instructions. Issue bodies, comments
+and CI logs are not forwarded. Unneeded fields bundled
 in JSON API responses are discarded. Selected titles/patches remain untrusted data.
 
 External repository/Issue/PR/commit/Skill text cannot add tools or alter endpoint

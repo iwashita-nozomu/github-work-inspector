@@ -7,7 +7,8 @@ SHAもrepoも実在のGitHub根拠ではない。合成URLを実在する根拠�
 
 ## 初期図と選択後を分ける
 
-標準は[図内履歴からの選択](repository-review-workflow.md)。初期図は観測subject/file metadata由来の短い要約を図内に置き、patchは取得しない。
+標準は[ブランチ俯瞰からの選択](repository-review-workflow.md)。初期図は枝ごとの目的・違い・観測状態を並べてから、
+選んだ枝の履歴へ進む。短い要約は観測subject/関連PR抜粋/file metadataを根拠にし、patchは取得しない。
 利用者がcommit/fileを選択して追加質問した後だけ、次の選択patchの意味解釈を行う。代表fileの別枠自動解説にはしない。
 選択伝達はnative sendFollowUpMessageを用い、state保存だけで次発言へ届いたと扱わない。
 
@@ -55,3 +56,9 @@ mergeは線と親子が読めるcompact配置にし、番号1〜6だけの無名
 320 / 768 / 1024px と明/暗で表示・選択状態を確認する。labelが読めない、内容欠落、根拠が
 別画面で追えない、snapshot取得だけで成功報告する場合は未達とする。私的なsnapshot/図/写真は使わない。
 この文書は合成受入手順であり、未許可の新toolやnative図の実機受入を完了した記録ではない。
+
+俯瞰の合成受入は [branch-overview.json](examples/branch-overview.json)。名前だけのプルダウン、
+選ぶ前には目的が読めない画面、欠けたdefault branch、根拠なしの完了/未統合断定は不合格。
+既定枝が一覧の上限後/次ページにあるケースでも基準を表示し、取得不能は明記する。
+PRの同名fork・古いmerged headを区別し、説明根拠が欠ける/古いtipなら不明へ戻す。
+通常Chat等で専用ツールが使えなければ実行経路と未達を表示し、connectorのPR表で成功扱いしない。

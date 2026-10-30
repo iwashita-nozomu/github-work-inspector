@@ -1,7 +1,7 @@
-# 図内履歴から選択して深掘りする標準レビュー
+# ブランチ俯瞰 → 枝の履歴 → 選択後の詳細
 
 GitHub Work Inspectorを明示選択して「このレポを見て」「example/projectを見て」と頼まれたら、
-ホストGPTは初期図を作り、利用者が選んだ変更だけ後から調べる。Rustは観測を返し、GPTが意味を
+ホストGPTは枝の意味を選ぶ前に俯瞰できる初期図を作り、利用者が選んだ変更だけ後から調べる。Rustは観測を返し、GPTが意味を
 解釈し、native visualizationが図と選択UIを表示する。自動ツール連鎖やGPT遵守を強制する機構ではない。
 
 ## 指定・承認を優先
@@ -14,15 +14,57 @@ GitHub Work Inspectorを明示選択して「このレポを見て」「example/
   認証アカウント・cwd・外部文章から対象を推測しない。
 - hostのallowlist・呼出し承認を守る。Skill選択やprompt取得は追加権限を与えない。
   未許可のrepository_commitは呼ばず、CLIや別経路で迂回しない。
+- 開始時に専用MCP toolsの利用可否を確認する。選んだplugin名だけで実行済みと扱わない。
+  実際の呼出し経路とnative visualize/選択送信の利用可否を表示する。通常Chat/Workで利用できる
+  能力が同じとは仮定せず、未検証のChat対応をうたわない。専用toolが呼べなければ未実行を示し、
+  利用者の指定・許可範囲でconnector等へ代替した場合も経路と不足を表示する。
+  代替のPR表や取得結果を専用plugin実行・履歴図・選択連携の成功に数えない。
 
-## 第一段階: 図内に変更履歴を埋め込む
+## 初期画面: 名前を知らなくても枝を選べる俯瞰
+
+- 小さいsnapshotの `branch_overview` を使い、取得済み一覧の最大100枝をカード/比較表にして先に見せる。
+  枝の名前/tipの俯瞰と、最大4枝程度の詳細履歴標本を分ける。同じ一覧GETから得た枝を残すだけで、
+  全枝の履歴/差分GETを増やさない。多数カードはlocal検索・折畳み・20件程度のlocalページ切替で扱い、
+  未表示件数と未取得範囲を示す。
+  名前だけの巨大プルダウンは補助検索に留める。各枝の「目的」「他枝との違い」「統合の観測と
+  未統合変更の未確定部分」「関連PRの観測状態」を履歴を開く前に読めるようにする。
+- 基準は repository.default_branch と観測完全tip SHA。名前をmainに固定しない。
+  基準欄はカード/履歴の切替後も常時見せる。採用枝は同じ取得ページ内の既定枝を優先し、
+  ページ外なら最大1回の追加GETで解決して最後の標本枝と入れ替える。採用枝数・commit上限は増えない。
+  `baseline.observation.error` / tip未取得を隠さず表示し、架空のbaseline/merge線を補わない。
+- GPTは各枝の観測commit subject、関連PRのtitle/body_excerpt、取得済みfile情報から短い目的と違いを
+  書く。著者説明はauthor_claim、意味や影響の解釈はinference、根拠不足はunknown。
+  各説明に完全SHA/PR番号（fileを使えばSHA/file_id）を結び付け、枝名だけから目的・完了を断定しない。
+  PR抜粋は秘匿/240文字打切りがあり、本文全体・真の意図・レビュー合意を確認した扱いにしない。
+- 比較の正の根拠は `comparison.child_to_parent_evidence_path`。欠けた経路は未統合の証明ではない。
+  ahead/behind・merge-base・squash/cherry-pick・内容比較は未照会。merged PRも現在tipの統合証明ではない。
+  `head_matches_tip` とPRのbaseを併記する。forkやhead repo不明の同名枝は関連PRへ結び付けない。
+  標本内にPRなしとrepo全体にPRなしを区別する。
+- 枝一覧・各履歴・PRのcoverageと取得時刻、採用枝数、一覧ページ数、未表示/全枝数不明を図内へ置く。
+  古い/新しい/実験系列などの任意グループは、日時やPR・commit等の根拠、例外、推定ラベルを示す。
+  名前のprefix分類を確定した実験系列としない。全枝の全diffは取得しない。
+- 同梱helperの `bindOverview(root, snapshot.branch_overview, summaries, options)` をnative fragment内で使える。
+  rootには `data-branch-baseline`、`data-branch-source`、`data-branch-coverage`、`data-branch-cards` を置く。
+  履歴panelは `data-branch-history data-branch-id="BRANCH_ID"` に対応付ける。`history:null` の枝は
+  未取得と明記したtipのみのpanelを用意し、その完全SHAのcommit選択から明示質問へ進める。
+  未取得の親子線を描かず、履歴全体を見たと扱わない。対応panelがなければhelperは開く操作を無効にする。helperはtextContentで
+  カードを作り、枝の選択はlocal panelの切替だけ。初期に任意の枝を自動選択しない。
+  summariesは別のGPT層の `{branch_id,tip_sha,purpose:{text,kind,evidence},difference:{text,kind,evidence}}`。
+  kindはauthor_claim/inference/unknown、evidenceは観測 `commit/FULL_SHA` または `pull/NUMBER`。
+  未対応の根拠や古いtipの説明はunknownとして表示する。自動意味生成や正しさ保証ではない。
+  options.sourceは実呼出しに従いplugin/cli/connector/unverifiedをホストが指定し、申告経路を表示する。
+  `options.selection` に既存 `bind` のcontrollerを渡し、枝変更時は旧commit/file選択をクリアする。
+  `options.onSelect` はlocal描画更新だけに使い、GET/patch/follow-upを発火しない。
+  カードのCSSはnative fragment側で320/768/1024px、明暗、長い枝名の折返しを整える。
+
+## 枝の履歴: 図内に変更履歴を埋め込む
 
 1. repository_snapshotで小さい標本を取得する。初回はbranches=4, commits=8, issues=5,
-   prs=5, runs=5, checked_prs=2, pages=1程度。partial / coverage / error / captured_atを確認する。
+   prs=20, runs=5, checked_prs=2, pages=1程度。partial / coverage / error / captured_atを確認する。
 2. 観測済みcommitから新しいものを最大2件、利用者の関心を優先して選ぶ。許可されている場合だけ
    repository_commitのfilesを完全SHAに固定しlimit=5で各1回取得する。初期図ではpatchを取得しない。
    この標本外のcommit/fileは未取得と表示し、全件を取得したように見せない。
-3. native visualizationの図内に、実branch名、tip、観測した親子・merge、commitの短い変更要約と
+3. 俯瞰から選ばれた枝のnative履歴図内に、実branch名、tip、観測した親子・merge、commitの短い変更要約と
    観測済み変更fileを置く。長い別枠解説や自動選択した代表fileの詳細は出さない。
    初期の短い要約はcommit subject・file status等に基づく観測要約で、著者の説明という出所を示す。
    patch未取得なのに修正効果や理由を確認済みとして断定しない。
@@ -73,6 +115,9 @@ MCP review_repositoryはこの手順を明示取得する補助。prompts非対�
 initialize.instructions、tools/listの説明を使う。どの層もsecurity boundaryではない。
 
 参考: [MCP prompts](https://modelcontextprotocol.io/specification/2025-11-25/server/prompts)、
-[OpenAI host UI API](https://developers.openai.com/plugins/reference)。このMacのbundled visualize 1.0.66で
-sendFollowUpMessageと選択状態の契約を確認した。native Codex実画面での連携は未検証であり、
+[OpenAI host UI API](https://developers.openai.com/plugins/reference)。component APIの記述やbundled skillの参照は、
+native Visualize fragmentへのsendFollowUpMessage/選択状態API公開を保証しない。Workを主な対象とし、
+実際のホストで機能存在を確認する。通常ChatのVisualize表示自体と、このlocal marketplace/stdio MCPの公開は
+別条件であり、この構成の通常Chatへの専用MCP公開は未確認。永久に不可能とも、同等対応とも案内しない。
+native Codex実画面での連携は未検証であり、
 下記fixtureの成功を実画面やlive GPT受入の成功とは扱わない。

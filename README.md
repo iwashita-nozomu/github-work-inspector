@@ -89,6 +89,19 @@ Python版はRust版に置換しました。`python -m github_work_inspector` は
 DAGはSHA順で、親が取得範囲外なら `?` を付けます。時系列・topological順とは限りません。
 branch間で重複するcommitを統合し、各branchの取得範囲と打切りを記録します。
 
+開発中のブランチ俯瞰では、取得済み一覧の最大100枝を履歴標本（4枝程度）と分け、各枝の目的・他枝との違い・関連PR・統合の観測を図内カードで先に
+比べ、枝の履歴、選択commit/fileの詳細へ進みます。GPTの説明は根拠と著者説明/推定/不明を分けます。
+比較基準は `repository.default_branch` と観測tipを常時表示し、mainに固定しません。
+一覧の件数・ページ外の既定枝は最大1回の固定GETで確保し、失敗も明記します。採用枝/commit上限は増やしません。
+PR本文は秘匿/短縮した240文字の抜粋のみ。有限DAGの経路欠落やmerged PRから現在tipの統合を断定せず、
+全枝のdiffやahead/behindは取得しません。[標準手順](docs/repository-review-workflow.md) を参照。
+これはソース/fixtureで検証する変更で、通常Chatの専用MCP・native表示・選択連携対応は未検証です。
+専用toolが利用できない場合は未実行と示し、connectorへの代替をプラグインや図示の成功に数えません。
+主な対象はWorkのローカルCodex環境です。通常ChatのVisualize表示対応とlocal stdio MCPの公開は別条件で、
+このlocal marketplace構成の通常Chat対応は未確認です。Workでもホスト上のtoolsとnative機能を確認します。
+component APIの存在はVisualize fragmentへの `sendFollowUpMessage` 公開を保証しません。
+存在確認・失敗時の手動コピー質問を維持し、Chatで永久に利用不能とも断定しません。
+
 ## 選択した commit → file → diff
 
 ```sh
