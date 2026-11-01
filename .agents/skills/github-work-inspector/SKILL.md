@@ -3,7 +3,7 @@ name: github-work-inspector
 description: 明示選択したrepoの枝の意味を俯瞰し、履歴と選択差分を共通契約とRust CLIで深掘りする。
 ---
 
-<!-- Generated from core/; edit the authored source. Core digest: 0c50ffabcc5eae56b0a70fb5c3456462304dc5a1156b9533c53715141bb4be09 -->
+<!-- Generated from core/; edit the authored source. Core digest: c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70 -->
 
 明示的な単独CLI Skill。既存認証済みghと導入済みRust CLIのJSONを使う。プラグインのallowlistを迂回しない。
 

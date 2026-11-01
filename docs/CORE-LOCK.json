@@ -9,17 +9,17 @@
     "core/entries/work-plugin.md": "7a08b98180ace435aef4fb98d56db9873b3a75f46e181cb493391e7cfea53bc8",
     "core/exploration.js": "57133d2fe0d8446f05c9a10e4e74aec6391f6be108abb3c72c241e13b4145428",
     "core/exploration.md": "5c02de96b2c0947a823eaf44e88b3b6e72a1b1c16cf26930bdc60f45e56f4184",
-    "core/history-graph.js": "3cf0e581387f6cfb6a1dd96d4d10c2d1edab84c69a8975acd75677e36a470a77",
-    "core/history.js": "a7f9ae657c3793281c95894c42796e768ba33de822569bfca23f5d70b63cc941",
+    "core/history-graph.js": "9745fb2f3fac5b29a10289548475c64237be1fd0bbb5cb846d0c895561c04a39",
+    "core/history.js": "b0e467ebb3e0f3938ef67549158b20c6ad2f4f2af64fd5d8c46cb5edf156daca",
     "core/history.md": "c31134c4dac354516c20951501a5cea08299df1104453e1c7b9fbe8ed3e7c2c4",
     "core/normalize.js": "f28afc130504264b8f2787f18bacc2684a00ed5a28dd9645fa2733ea69456e3b",
     "core/observation.schema.json": "4fe7d09c14b78d39d9d952226da1153d8d1c65099799d78d085ec773e14fb407",
     "core/overview.fragment.html": "a9644f5627bc4e129b2bdfdcce92e5233a0b7dde2ccd93b8f33c3893c600caba",
-    "core/overview.js": "fc8419bfd8a6de551c90597ec3552b21c908e89056e68720ab69eb03014036a7",
+    "core/overview.js": "cdb315ab59b766be2e055dcd86025f4b7edf0817f0ca5d158089f5fe273a1354",
     "core/selection.js": "9f9e4a48bc87b784be636baede7b1d47a2d19d25910a46e303973075b5938fd7",
     "core/survey.js": "393c0137520cd43cada350f2175f354a6908d761c5356c197ffcfddaa04a4c2b",
     "core/workflow.md": "e2a438217920a296a894d088130e915f01db881cebd53544d7b25bf92d940368"
   },
   "consistency_only_not_signature": true,
-  "core_digest": "0c50ffabcc5eae56b0a70fb5c3456462304dc5a1156b9533c53715141bb4be09"
+  "core_digest": "c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70"
 }

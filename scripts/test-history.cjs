@@ -83,3 +83,8 @@ test('full default workflow retains all-ref content traversal, history queue and
  }
  assert.equal(finished,true);assert.ok(requests<30);assert.equal(snapshot(x).dag.per_branch.length,3);assert.equal(snapshot(x).partial,false);
 });
+
+test('octopus parent cap exposes omitted counts and never describes a truncated parent list as a complete merge',()=>{
+ const x=input(),parents=Array.from({length:20},(_,i)=>(i+20).toString(16).padStart(40,'0'));x.history_commits=[record(M,parents),record(F,[])];const s=snapshot(x),n=s.dag.nodes.find(n=>n.sha===M);assert.equal(n.parents.length,16);assert.equal(n.parents_omitted_count,4);assert.equal(n.parents_complete,false);assert.equal(s.dag.history_coverage.parent_links_omitted,4);assert.equal(s.dag.history_coverage.fully_enumerated,false);
+ const d=dom();UI.mount(d.element,{captured_at:at,snapshot:s});assert.ok(text(d.controls['history-graph']).includes('16+4省略'));assert.ok(text(d.controls['history-graph']).includes('親リンク省略4'));
+});

@@ -3,7 +3,7 @@ name: github-repo-review-chat
 description: ChatとWorkの共通入口。明示選択したrepoの全枝を列挙し、各tipの内容根拠を読み、図内で選択して深掘りする。
 ---
 
-<!-- Generated from core/; edit the authored source. Core digest: 0c50ffabcc5eae56b0a70fb5c3456462304dc5a1156b9533c53715141bb4be09 -->
+<!-- Generated from core/; edit the authored source. Core digest: c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70 -->
 
 既存GitHub appを取得経路とする個人用の共通入口。下記のWork共通核を使う。
 RustやMacのlocal MCPを実行したとは扱わない。appの許可範囲はhostが管理し、このSkillはACLではない。

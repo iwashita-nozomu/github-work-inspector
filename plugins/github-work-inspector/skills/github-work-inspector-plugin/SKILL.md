@@ -3,7 +3,7 @@ name: github-work-inspector-plugin
 description: 明示選択したrepoの枝の意味を俯瞰し、履歴と選択差分を共通契約とRust MCPで深掘りする。
 ---
 
-<!-- Generated from core/; edit the authored source. Core digest: 0c50ffabcc5eae56b0a70fb5c3456462304dc5a1156b9533c53715141bb4be09 -->
+<!-- Generated from core/; edit the authored source. Core digest: c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70 -->
 
 Workローカルプラグイン。下記の共通核とWorkアダプタを使い、既存の4ツール・承認設定を守る。
 
