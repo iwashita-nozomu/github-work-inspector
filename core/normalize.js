@@ -23,7 +23,7 @@
     const defaultBranch = validRef(metadata.default_branch) ? metadata.default_branch : null;
     if (!Array.isArray(input.branch_pages) || input.branch_pages.length > contract.limits.branch_pages) fail();
     const names = new Set(), cursors = new Set();
-    let ended = false, repeated = false, branchError = null, pages = 0;
+    let ended = false, repeated = false, branchError = null, pages = 0, nextCursor = null;
     for (const page of input.branch_pages) {
       if (ended) fail();
       pages += 1;
@@ -31,17 +31,17 @@
       if (!Array.isArray(page.branches) || page.branches.length > 100) fail();
       for (const row of page.branches) { if (!validRef(row.branch)) fail(); names.add(row.branch); }
       if (!Object.hasOwn(page, 'cursor')) fail();
-      if (page.cursor === null) { ended = true; break; }
+      if (page.cursor === null) { nextCursor = null; ended = true; break; }
       if (typeof page.cursor !== 'string' || page.cursor.length > 1024) fail();
       if (cursors.has(page.cursor)) { repeated = true; break; }
-      cursors.add(page.cursor);
+      cursors.add(page.cursor); nextCursor = page.cursor;
       // A non-null cursor alone, even with an empty page, does not prove exhaustion.
     }
     const retained = Array.from(names);
     if (retained.length > contract.limits.branch_cards) fail(); // Never silently drop a fetched branch.
     if (defaultBranch && names.has(defaultBranch) && !retained.includes(defaultBranch)) retained[retained.length - 1] = defaultBranch;
     const complete = ended && names.size <= contract.limits.branch_cards && !branchError;
-    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
+    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, next_cursor: nextCursor, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
     const tips = new Map();
     const resolutions = input.tip_resolutions || [];
     if (!Array.isArray(resolutions) || resolutions.length > contract.limits.tip_resolutions) fail();
@@ -73,7 +73,7 @@
     const items = branches.map((b) => ({ name: b.name, branch_id: b.branch_id, tip_sha: b.sha, tip_commit: nodes.find((c) => c.sha === b.sha) || null, history: null, comparison: { relation: b.name === defaultBranch && b.sha ? 'same_tip' : 'unavailable_parent_fields', child_to_parent_evidence_path: null, unmerged_changes: 'not_determined', ahead_behind: 'not_queried' }, related_pull_requests: pulls.filter((p) => p.head_repository === repository && p.head_branch === b.name).map((p) => ({ pull: p, association: 'same_repository_and_exact_head_ref', head_matches_tip: b.sha === null || p.head_sha === null ? null : b.sha === p.head_sha })) }));
     const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
     root.GitHubReviewSurvey.decorate(output.snapshot, input);
-    output.snapshot.partial ||= !output.snapshot.branch_overview.content_coverage.complete;
+    output.snapshot.partial ||= !output.snapshot.branch_overview.exploration.all_checked;
     return output;
   }
   function normalizeChatCommit(input) {

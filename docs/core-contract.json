@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -19,7 +19,8 @@
     "content_files": 2,
     "content_lines": 60,
     "content_bytes": 8192,
-    "overview_page_size": 20
+    "overview_page_size": 20,
+    "baseline_counterpart_files": 1
   },
   "profiles": {
     "rust_gh": {
@@ -51,7 +52,9 @@
     ],
     "selection_click": "local state only",
     "explicit_question": "feature-detected host bridge or manual copy; never direct network",
-    "scope": "user scope and host approvals take precedence"
+    "scope": "user scope and host approvals take precedence",
+    "exploration_order": "enumerate inventory first; default branch to terminal bounded review first; remaining exact refs in locale-independent UTF-16 lexical order",
+    "exploration_completion": "every acquired branch has a terminal bounded-review state; partial inventory stays partial; no unread branch silently settled"
   },
   "security_boundary": false,
   "selection_schema": "urn:github-work-inspector:review-observation:1#/$defs/selectionReference"

@@ -1,6 +1,6 @@
-/* Generated from core/; consistency digest: 44f3335aec04382d513becd97ba6a2dff180b669ae02a536f36debeb6d73606f */
+/* Generated from core/; consistency digest: c5259195720f8f3add627125081ea8d193b7bc9b4a4875dd9013c0a4f1063d3c */
 globalThis.GitHubReviewCoreContract = Object.freeze({
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -20,7 +20,8 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     "content_files": 2,
     "content_lines": 60,
     "content_bytes": 8192,
-    "overview_page_size": 20
+    "overview_page_size": 20,
+    "baseline_counterpart_files": 1
   },
   "profiles": {
     "rust_gh": {
@@ -52,7 +53,9 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     ],
     "selection_click": "local state only",
     "explicit_question": "feature-detected host bridge or manual copy; never direct network",
-    "scope": "user scope and host approvals take precedence"
+    "scope": "user scope and host approvals take precedence",
+    "exploration_order": "enumerate inventory first; default branch to terminal bounded review first; remaining exact refs in locale-independent UTF-16 lexical order",
+    "exploration_completion": "every acquired branch has a terminal bounded-review state; partial inventory stays partial; no unread branch silently settled"
   },
   "security_boundary": false,
   "selection_schema": "urn:github-work-inspector:review-observation:1#/$defs/selectionReference"
@@ -82,7 +85,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const defaultBranch = validRef(metadata.default_branch) ? metadata.default_branch : null;
     if (!Array.isArray(input.branch_pages) || input.branch_pages.length > contract.limits.branch_pages) fail();
     const names = new Set(), cursors = new Set();
-    let ended = false, repeated = false, branchError = null, pages = 0;
+    let ended = false, repeated = false, branchError = null, pages = 0, nextCursor = null;
     for (const page of input.branch_pages) {
       if (ended) fail();
       pages += 1;
@@ -90,17 +93,17 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
       if (!Array.isArray(page.branches) || page.branches.length > 100) fail();
       for (const row of page.branches) { if (!validRef(row.branch)) fail(); names.add(row.branch); }
       if (!Object.hasOwn(page, 'cursor')) fail();
-      if (page.cursor === null) { ended = true; break; }
+      if (page.cursor === null) { nextCursor = null; ended = true; break; }
       if (typeof page.cursor !== 'string' || page.cursor.length > 1024) fail();
       if (cursors.has(page.cursor)) { repeated = true; break; }
-      cursors.add(page.cursor);
+      cursors.add(page.cursor); nextCursor = page.cursor;
       // A non-null cursor alone, even with an empty page, does not prove exhaustion.
     }
     const retained = Array.from(names);
     if (retained.length > contract.limits.branch_cards) fail(); // Never silently drop a fetched branch.
     if (defaultBranch && names.has(defaultBranch) && !retained.includes(defaultBranch)) retained[retained.length - 1] = defaultBranch;
     const complete = ended && names.size <= contract.limits.branch_cards && !branchError;
-    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
+    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, next_cursor: nextCursor, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
     const tips = new Map();
     const resolutions = input.tip_resolutions || [];
     if (!Array.isArray(resolutions) || resolutions.length > contract.limits.tip_resolutions) fail();
@@ -132,7 +135,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const items = branches.map((b) => ({ name: b.name, branch_id: b.branch_id, tip_sha: b.sha, tip_commit: nodes.find((c) => c.sha === b.sha) || null, history: null, comparison: { relation: b.name === defaultBranch && b.sha ? 'same_tip' : 'unavailable_parent_fields', child_to_parent_evidence_path: null, unmerged_changes: 'not_determined', ahead_behind: 'not_queried' }, related_pull_requests: pulls.filter((p) => p.head_repository === repository && p.head_branch === b.name).map((p) => ({ pull: p, association: 'same_repository_and_exact_head_ref', head_matches_tip: b.sha === null || p.head_sha === null ? null : b.sha === p.head_sha })) }));
     const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
     root.GitHubReviewSurvey.decorate(output.snapshot, input);
-    output.snapshot.partial ||= !output.snapshot.branch_overview.content_coverage.complete;
+    output.snapshot.partial ||= !output.snapshot.branch_overview.exploration.all_checked;
     return output;
   }
   function normalizeChatCommit(input) {
@@ -167,7 +170,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
   root.GitHubReviewCore = Object.freeze({ contract, normalizeChat, normalizeChatCommit, validPath, validRef });
 })(globalThis);
 
-/* Bounded, deterministic survey planning/receipt validation. Host executes only returned reads. */
+/* Pure receipt validation/cache. Acquisition and interpretation remain host responsibilities. */
 ((root) => {
   'use strict';
   const C = root.GitHubReviewCore, L = C.contract.limits;
@@ -175,81 +178,198 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
   const full = (v) => typeof v === 'string' && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(v);
   const safePath = (p) => C.validPath(p) && !/(?:^|\/)(?:\.[^/]+|data|vendor|third-party|node_modules|target|secrets?|credentials?)(?:\/|$)|(?:secret|credential|password|token)|\.(?:key|pem|p12|pfx|onnx|csv|nc|zip|gz)$/i.test(p) && /(?:\.(?:md|rst|txt|toml|json|ya?ml|py|rs|cpp|cc|c|hpp|h|cmake)|(?:^|\/)CMakeLists\.txt)$/i.test(p);
   const clean = (s) => typeof s === 'string' ? s.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '') : '';
+  const order = (a, b) => a < b ? -1 : a > b ? 1 : 0; // Locale-independent exact ref/path order.
   function key(repository, sha, path, start = 1, end = L.content_lines) {
     if (!full(sha) || !safePath(path) || start !== 1 || end !== L.content_lines) invalid();
     return repository + '@' + sha.toLowerCase() + '/' + path + '#L' + start + '-L' + end;
   }
-  // A comparison supplies candidate paths, never a parent edge or executable instruction.
-  function paths(comparison) {
+  function representative(comparison) {
     const files = Array.isArray(comparison?.files) ? comparison.files : [];
-    const candidates = files.filter((f) => f.status !== 'removed' && safePath(f.filename) && !/^readme(?:\.|$)/i.test(f.filename));
-    candidates.sort((a, b) => {
-      const rank = (p) => /\.(?:rs|py|cpp|hpp|c|h|cc)$/i.test(p) ? 0 : /(?:config|CMakeLists|\.toml|\.cmake|\.ya?ml|\.json)/i.test(p) ? 1 : 2;
-      return rank(a.filename) - rank(b.filename) || a.filename.localeCompare(b.filename);
-    });
-    return ['README.md', candidates[0]?.filename || 'CMakeLists.txt'];
+    const candidates = files.filter((f) => f.status !== 'removed' && safePath(f.filename));
+    const rank = (p) => /\.(?:rs|py|cpp|hpp|c|h|cc)$/i.test(p) ? 0 : /(?:config|CMakeLists|\.toml|\.cmake|\.ya?ml|\.json)/i.test(p) ? 1 : /^readme(?:\.|$)/i.test(p) ? 3 : 2;
+    candidates.sort((a, b) => rank(a.filename) - rank(b.filename) || order(a.filename, b.filename));
+    return candidates[0]?.filename || null;
+  }
+  function paths(comparison) {
+    const selected = representative(comparison);
+    return ['README.md', selected && selected !== 'README.md' ? selected : 'CMakeLists.txt'];
   }
   function decorate(snapshot, input) {
     const repository = snapshot.repository.name_with_owner, base = snapshot.branch_overview.baseline.tip_sha;
-    const reads = input.branch_reads || [], byRef = new Map(), cache = new Map();
+    const reads = input.branch_reads || [], byRef = new Map(), cache = new Map(), comparisons = new Map();
     if (!Array.isArray(reads) || reads.length > L.branch_cards) invalid();
+    function put(f, sha) {
+      const k = key(repository, sha, f.path, f.start_line, f.end_line);
+      if (typeof f.captured_at !== 'string' || !Number.isFinite(Date.parse(f.captured_at))) invalid();
+      if (f.error) {
+        if (!cache.has(k)) cache.set(k, { id: k, path: f.path, sha, captured_at: f.captured_at, state: 'unavailable', reason: 'file_read_failed', excerpt: null });
+        return;
+      }
+      if (typeof f.content !== 'string' || f.content.length > 128 * 1024) invalid();
+      const sensitive = /\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])/i.test(f.content) || f.content.includes('PRIVATE KEY');
+      let excerpt = sensitive ? null : clean(f.content).split('\n').slice(0, L.content_lines).join('\n');
+      if (excerpt !== null) { let n = 0, out = ''; for (const ch of excerpt) { n += new TextEncoder().encode(ch).length; if (n > L.content_bytes) break; out += ch; } excerpt = out; }
+      const receipt = { id: k, path: f.path, sha: sha.toLowerCase(), start_line: 1, requested_end_line: L.content_lines, captured_at: f.captured_at, state: sensitive ? 'omitted_sensitive' : excerpt.trim() ? 'read' : 'empty', reason: sensitive ? 'sensitive_display_content' : null, excerpt, truncated: !sensitive && excerpt !== f.content, url: 'https://github.com/' + repository + '/blob/' + sha.toLowerCase() + '/' + f.path.split('/').map(encodeURIComponent).join('/') + '#L1-L' + L.content_lines, pre_model_redaction: false };
+      const previous = cache.get(k);
+      if (previous?.state === 'read' && receipt.state === 'read' && previous.excerpt !== receipt.excerpt) invalid();
+      cache.set(k, receipt);
+    }
     for (const r of reads) {
       if (!C.validRef(r.ref) || byRef.has(r.ref) || !snapshot.branches.items.some((b) => b.name === r.ref && b.sha === r.sha) || !full(r.sha)) invalid();
       if (!Array.isArray(r.files) || r.files.length > L.content_files || typeof r.captured_at !== 'string' || !Number.isFinite(Date.parse(r.captured_at))) invalid();
       byRef.set(r.ref, r);
-      for (const f of r.files) {
-        const k = key(repository, r.sha, f.path, f.start_line, f.end_line);
-        if (typeof f.captured_at !== 'string' || !Number.isFinite(Date.parse(f.captured_at))) invalid();
-        if (f.error) { cache.set(k, { id: k, path: f.path, sha: r.sha, captured_at: f.captured_at, state: 'unavailable', reason: 'file_read_failed', excerpt: null }); continue; }
-        if (typeof f.content !== 'string' || f.content.length > 128 * 1024) invalid();
-        const sensitive = /\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])/i.test(f.content) || f.content.includes('PRIVATE KEY');
-        let excerpt = sensitive ? null : clean(f.content).split('\n').slice(0, L.content_lines).join('\n');
-        if (excerpt !== null) { let n = 0, out = ''; for (const ch of excerpt) { n += new TextEncoder().encode(ch).length; if (n > L.content_bytes) break; out += ch; } excerpt = out; }
-        const receipt = { id: k, path: f.path, sha: r.sha.toLowerCase(), start_line: 1, requested_end_line: L.content_lines, captured_at: f.captured_at, state: sensitive ? 'omitted_sensitive' : excerpt.trim() ? 'read' : 'empty', reason: sensitive ? 'sensitive_display_content' : null, excerpt, truncated: !sensitive && excerpt !== f.content, url: 'https://github.com/' + repository + '/blob/' + r.sha.toLowerCase() + '/' + f.path.split('/').map(encodeURIComponent).join('/') + '#L1-L' + L.content_lines, pre_model_redaction: false };
-        const previous = cache.get(k);
-        if (previous?.state === 'read' && receipt.state === 'read' && previous.excerpt !== receipt.excerpt) invalid();
-        cache.set(k, receipt);
+      for (const f of r.files) put(f, r.sha);
+      const baselineFiles = r.baseline_files || [];
+      if (!Array.isArray(baselineFiles) || baselineFiles.length > 1) invalid();
+      for (const f of baselineFiles) { if (!base || f.sha !== base) invalid(); put(f, base); }
+      const cmp = r.comparison;
+      if (cmp) {
+        if (!base || cmp.base !== base || cmp.head !== r.sha || cmp.repository_full_name?.toLowerCase() !== repository || !['identical', 'ahead', 'behind', 'diverged'].includes(cmp.status) || !Array.isArray(cmp.files) || cmp.files.length > 3000 || !Number.isInteger(cmp.ahead_by) || !Number.isInteger(cmp.behind_by) || cmp.ahead_by < 0 || cmp.behind_by < 0 || (cmp.base === cmp.head && cmp.status !== 'identical') || (cmp.status === 'identical' && (cmp.base !== cmp.head || cmp.ahead_by !== 0 || cmp.behind_by !== 0 || cmp.files.length !== 0))) invalid();
+        const previous = comparisons.get(r.sha);
+        if (previous && (previous.result.status !== cmp.status || previous.result.ahead_by !== cmp.ahead_by || previous.result.behind_by !== cmp.behind_by)) invalid();
+        if (!previous) comparisons.set(r.sha, { result: { ...cmp, files: [...cmp.files].sort((a, b) => order(a.filename, b.filename)) }, captured_at: r.captured_at });
+        else {
+          const files = new Map(previous.result.files.map((f) => [f.filename, f]));
+          for (const f of cmp.files) { if (files.has(f.filename) && files.get(f.filename).status !== f.status) invalid(); files.set(f.filename, f); }
+          if (files.size > 3000) invalid();
+          previous.result.files = [...files.values()].sort((a, b) => order(a.filename, b.filename));
+          if (Date.parse(r.captured_at) < Date.parse(previous.captured_at)) previous.captured_at = r.captured_at;
+        }
       }
+    }
+    const summaries = input.branch_summaries || [];
+    if (!Array.isArray(summaries) || summaries.length > L.branch_cards) invalid();
+    const summaryByRef = new Map();
+    for (const s of summaries) {
+      if (summaryByRef.has(s.ref) || !snapshot.branches.items.some((b) => b.name === s.ref && b.sha === s.sha) || !['recorded', 'insufficient'].includes(s.status)) invalid();
+      summaryByRef.set(s.ref, s);
     }
     let readCount = 0, attempted = 0, unresolved = 0;
     for (const item of snapshot.branch_overview.items) {
-      const r = byRef.get(item.name), cmp = r?.comparison;
+      const r = byRef.get(item.name), observed = comparisons.get(item.tip_sha), cmp = observed?.result;
       if (!item.tip_sha) unresolved++;
-      let comparison = null;
-      if (cmp) {
-        if (!base || cmp.base !== base || cmp.head !== item.tip_sha || cmp.repository_full_name?.toLowerCase() !== repository || !['identical', 'ahead', 'behind', 'diverged'].includes(cmp.status) || !Array.isArray(cmp.files) || cmp.files.length > 3000 || !Number.isInteger(cmp.ahead_by) || !Number.isInteger(cmp.behind_by) || cmp.ahead_by < 0 || cmp.behind_by < 0) invalid();
-        comparison = { base_sha: base, head_sha: item.tip_sha, status: cmp.status, ahead_by: cmp.ahead_by, behind_by: cmp.behind_by, files_observed: cmp.files.length, files_complete: false, captured_at: r.captured_at, source: 'connector_compare_full_shas', parent_edges: false };
-      }
+      const comparison = cmp ? { base_sha: base, head_sha: item.tip_sha, status: cmp.status, ahead_by: cmp.ahead_by, behind_by: cmp.behind_by, files_observed: cmp.files.length, files_complete: false, captured_at: observed.captured_at, source: 'connector_compare_full_shas', parent_edges: false } : null;
       const expected = paths(cmp), evidence = item.tip_sha ? expected.map((p) => cache.get(key(repository, item.tip_sha, p))).filter(Boolean) : [];
+      const selected = representative(cmp), branchFile = selected && item.tip_sha ? cache.get(key(repository, item.tip_sha, selected)) : null;
+      const baseFile = selected && base ? cache.get(key(repository, base, selected)) : null;
+      const deltaEvidence = [branchFile, baseFile].filter((f, i, a) => f && a.findIndex((x) => x?.id === f.id) === i);
+      const deltaState = cmp?.status === 'identical' ? 'identical_tips_observed' : branchFile?.state === 'read' && baseFile?.state === 'read' ? 'bounded_file_pair_observed' : cmp ? 'branch_difference_not_read' : 'comparison_unavailable';
       const successful = evidence.filter((f) => f.state === 'read');
+      const summary = summaryByRef.get(item.name);
+      const allowed = new Set([...evidence, ...deltaEvidence].filter((f) => f.state === 'read').map((f) => f.id));
+      const validPart = (s) => s && typeof s.text === 'string' && s.text.trim().length > 0 && s.text.length <= 480 && !/\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])|PRIVATE KEY/i.test(s.text) && ['inference', 'author_claim'].includes(s.kind) && Array.isArray(s.evidence) && s.evidence.length > 0 && s.evidence.length <= 6 && s.evidence.every((id) => allowed.has(id));
+      const deltaReady = ['identical_tips_observed', 'bounded_file_pair_observed'].includes(deltaState);
+      const deltaIds = deltaEvidence.filter((f) => f.state === 'read').map((f) => f.id);
+      const summaryValid = summary?.status === 'recorded' && validPart(summary.purpose) && validPart(summary.difference) && deltaReady && (cmp.status === 'identical' || deltaIds.every((id) => summary.difference.evidence.includes(id)));
+      if (summary?.status === 'recorded' && !summaryValid) invalid();
       if (r || evidence.length) attempted++;
       if (successful.length) readCount++;
-      item.content_review = { tip_error: (input.tip_resolutions || []).some((t) => t.ref === item.name && t.error) ? 'tip_resolution_failed' : null, state: !item.tip_sha ? 'unresolved' : successful.length === L.content_files && comparison ? 'inspected' : successful.length ? 'partial' : evidence.length || r ? 'unavailable' : 'unread', evidence, comparison, comparison_error: r?.comparison_error ? 'comparison_unavailable' : null, expected_paths: expected, scope: 'bounded_readme_and_one_representative_file_not_full_branch_audit', reused_revision: !r && evidence.length > 0, missing_reason: !item.tip_sha ? 'tip_not_resolved' : successful.length < L.content_files ? 'missing_or_unread_content' : !comparison ? 'comparison_not_observed' : null };
+      item.content_review = {
+        tip_error: (input.tip_resolutions || []).some((t) => t.ref === item.name && t.error) ? 'tip_resolution_failed' : null,
+        state: !item.tip_sha ? 'unresolved' : successful.length === L.content_files && comparison && ['identical_tips_observed', 'bounded_file_pair_observed'].includes(deltaState) ? 'inspected' : successful.length ? 'partial' : evidence.length || r ? 'unavailable' : 'unread',
+        evidence, comparison, comparison_error: !cmp && r?.comparison_error ? 'comparison_unavailable' : null, expected_paths: expected,
+        delta: { state: deltaState, representative_path: selected, baseline_sha: base, evidence: deltaEvidence, scope: 'same_path_two_tip_line_window_not_commit_patch_or_full_diff' },
+        summary: { status: summaryValid ? 'recorded' : summary?.status === 'insufficient' ? 'insufficient' : 'pending', purpose: summaryValid ? { ...summary.purpose, text: clean(summary.purpose.text) } : null, difference: summaryValid ? { ...summary.difference, text: clean(summary.difference.text) } : null },
+        scope: 'bounded_readme_and_one_representative_file_not_full_branch_audit', reused_revision: !r && evidence.length > 0,
+        missing_reason: !item.tip_sha ? 'tip_not_resolved' : successful.length < L.content_files ? 'missing_or_unread_content' : !comparison ? 'comparison_not_observed' : deltaState === 'branch_difference_not_read' ? 'baseline_file_pair_not_read' : null,
+      };
       if (comparison) item.comparison = { ...item.comparison, observed_compare: comparison, ahead_behind: 'observed_full_sha_comparison', unmerged_changes: comparison.ahead_by > 0 ? 'ahead_commits_observed_not_completion' : 'no_ahead_commits_at_observed_tips' };
     }
     snapshot.branch_overview.content_coverage = { target_branches: snapshot.branch_overview.items.length, attempted, with_file_evidence: readCount, inspected: snapshot.branch_overview.items.filter((b) => b.content_review.state === 'inspected').length, unresolved, unique_file_reads: cache.size, complete: snapshot.branch_overview.items.every((b) => b.content_review.state === 'inspected'), scope: 'bounded_content_evidence_only', pre_model_redaction: false };
+    snapshot.branch_overview.exploration = root.GitHubReviewExploration.progress(snapshot);
     return snapshot;
   }
-  function plan(snapshot) {
-    const repository = snapshot.repository.name_with_owner, baseline = snapshot.branch_overview.baseline.tip_sha;
-    const requests = [], seen = new Set();
-    const add = (key, method, args) => { if (!seen.has(key)) { seen.add(key); requests.push({ key, method, args }); } };
-    for (const b of snapshot.branch_overview.items) if (!b.tip_sha && !b.content_review?.tip_error) add('tip/' + b.branch_id, 'compare_commits', { repo_full_name: repository, base: b.name, head: b.name });
-    if (requests.length) return { phase: 'resolve_all_tips', requests, max_parallel: 4 };
-    for (const b of snapshot.branch_overview.items) {
-      if (!b.tip_sha) continue;
-      if (baseline && !b.content_review?.comparison && !b.content_review?.comparison_error) add('compare/' + baseline + '/' + b.tip_sha, 'compare_commits', { repo_full_name: repository, base: baseline, head: b.tip_sha });
-      // Wait for comparisons before choosing representative paths. Same-SHA content reads deduplicate.
-      if (!b.tip_sha || (baseline && !b.content_review?.comparison && !b.content_review?.comparison_error)) continue;
-      const evidence = b.content_review?.evidence || [];
-      for (const path of b.content_review.expected_paths) if (!evidence.some((f) => f.path === path)) {
-        const k = key(repository, b.tip_sha, path);
-        add(k, 'fetch_file', { repository_full_name: repository, ref: b.tip_sha, path, start_line: 1, end_line: L.content_lines });
-      }
-    }
-    return { phase: requests.length ? 'inspect_all_branch_contents' : 'finished_or_explicit_failures', requests, max_parallel: 4 };
+  const plan = (snapshot, options) => root.GitHubReviewExploration.plan(snapshot, options);
+  root.GitHubReviewSurvey = Object.freeze({ decorate, plan, paths, representative, safePath, key, order });
+})(globalThis);
+
+/* Deterministic exhaustive finite-target traversal. No network, storage or model execution. */
+((root) => {
+  'use strict';
+  const invalid = () => { throw new Error('Invalid exploration checkpoint'); };
+  const survey = () => root.GitHubReviewSurvey;
+  function ordered(snapshot) {
+    const base = snapshot.branch_overview.baseline.name;
+    return [...snapshot.branch_overview.items].sort((a, b) => a.name === base ? b.name === base ? 0 : -1 : b.name === base ? 1 : survey().order(a.name, b.name));
   }
-  root.GitHubReviewSurvey = Object.freeze({ decorate, plan, paths, safePath, key });
+  function inventoryRequest(snapshot) {
+    const c = snapshot.branches.coverage;
+    if (c.fully_enumerated || c.pages_fetched >= root.GitHubReviewCore.contract.limits.branch_pages || ['error', 'repeated_cursor'].includes(c.stopped_reason)) return null;
+    if (c.pages_fetched > 0 && c.next_cursor == null) return null;
+    const [owner, repo_name] = snapshot.repository.name_with_owner.split('/');
+    return { key: 'inventory/' + (c.next_cursor ?? 'first'), method: 'search_branches', args: { owner, repo_name, query: '', page_size: 100, ...(c.next_cursor == null ? {} : { cursor: c.next_cursor }) } };
+  }
+  function pending(snapshot, b) {
+    const repository = snapshot.repository.name_with_owner, baseline = snapshot.branch_overview.baseline.tip_sha, r = b.content_review;
+    if (!r) invalid();
+    if (!b.tip_sha) return { stage: r.tip_error ? 'tip_unavailable' : 'resolve_tip', requests: r.tip_error ? [] : [{ key: 'tip/' + b.branch_id, method: 'compare_commits', args: { repo_full_name: repository, base: b.name, head: b.name } }], task: null };
+    if (baseline && !r.comparison && !r.comparison_error) return { stage: 'compare_tips', requests: [{ key: 'compare/' + baseline + '/' + b.tip_sha, method: 'compare_commits', args: { repo_full_name: repository, base: baseline, head: b.tip_sha } }], task: null };
+    const requests = [];
+    for (const path of r.expected_paths) if (!r.evidence.some((f) => f.path === path)) requests.push({ key: survey().key(repository, b.tip_sha, path), method: 'fetch_file', args: { repository_full_name: repository, ref: b.tip_sha, path, start_line: 1, end_line: root.GitHubReviewCore.contract.limits.content_lines } });
+    if (requests.length) return { stage: 'read_branch_content', requests, task: null };
+    const delta = r.delta;
+    if (baseline && r.comparison?.status !== 'identical' && delta.representative_path && !delta.evidence.some((f) => f.sha === baseline)) {
+      const path = delta.representative_path;
+      return { stage: 'read_baseline_counterpart', requests: [{ key: survey().key(repository, baseline, path), method: 'fetch_file', args: { repository_full_name: repository, ref: baseline, path, start_line: 1, end_line: root.GitHubReviewCore.contract.limits.content_lines } }], task: null };
+    }
+    const evidence = [...r.evidence, ...delta.evidence].filter((f, i, a) => f.state === 'read' && a.findIndex((x) => x.id === f.id) === i);
+    if (evidence.length && r.summary.status === 'pending') return { stage: 'record_summary', requests: [], task: { kind: 'summarize_branch', ref: b.name, sha: b.tip_sha, branch_id: b.branch_id, evidence_ids: evidence.map((f) => f.id), difference_state: delta.state, allowed_statuses: ['recorded', 'insufficient'] } };
+    return { stage: 'settled', requests: [], task: null };
+  }
+  function progress(snapshot) {
+    const rows = ordered(snapshot).map((b, index) => {
+      const p = pending(snapshot, b), r = b.content_review;
+      const readable = [...r.evidence, ...r.delta.evidence].some((f) => f.state === 'read');
+      const terminal = p.requests.length === 0 && !p.task;
+      const started = b.tip_sha != null || r.tip_error != null || r.evidence.length > 0;
+      const state = !started ? 'not_started' : !terminal ? 'in_progress' : !readable ? 'unavailable' : r.state === 'inspected' && r.summary.status === 'recorded' ? 'checked' : 'partial';
+      return { ref: b.name, sha: b.tip_sha, index, state, terminal, stage: p.stage, pending_keys: p.requests.map((q) => q.key), summary_status: readable ? r.summary.status : 'unknown_no_readable_evidence', checked_scope: 'bounded_readme_representative_and_comparison_not_full_code_audit' };
+    });
+    const processed = rows.filter((r) => r.terminal).length, checked = rows.filter((r) => r.state === 'checked').length;
+    const counts = { acquired: rows.length, processed, remaining: rows.length - processed, checked, not_confirmed: rows.length - checked, partial: rows.filter((r) => r.state === 'partial').length, unavailable: rows.filter((r) => r.state === 'unavailable').length, not_started: rows.filter((r) => r.state === 'not_started').length, in_progress: rows.filter((r) => r.state === 'in_progress').length };
+    if (counts.acquired !== counts.checked + counts.partial + counts.unavailable + counts.not_started + counts.in_progress || counts.acquired !== counts.processed + counts.remaining || snapshot.branches.coverage.items_seen !== rows.length) invalid();
+    const next = rows.find((r) => !r.terminal);
+    return { order_rule: 'observed_default_first_then_exact_ref_utf16_lexicographic', order: rows.map((r) => r.ref), rows, counts, resume_ref: next?.ref ?? null, resume_stage: next?.stage ?? null, inventory_complete: snapshot.branches.coverage.fully_enumerated === true, finished_known_targets: processed === rows.length, complete: processed === rows.length && snapshot.branches.coverage.fully_enumerated === true, all_checked: checked === rows.length && snapshot.branches.coverage.fully_enumerated === true, atomic: false };
+  }
+  function checkpoint(snapshot, p) {
+    return { version: 1, requires_observations_snapshot: true, repository: snapshot.repository.name_with_owner, captured_at: snapshot.branches.captured_at, inventory_frozen: inventoryRequest(snapshot) === null, inventory_complete: p.inventory_complete, inventory_cursor: snapshot.branches.coverage.next_cursor ?? null, ordered_refs: [...p.order], pinned_tips: p.rows.map((r) => ({ ref: r.ref, sha: r.sha })), baseline_sha: snapshot.branch_overview.baseline.tip_sha, resume_ref: p.resume_ref, resume_stage: p.resume_stage, processed_refs: p.rows.filter((r) => r.terminal).map((r) => r.ref) };
+  }
+  function validateCheckpoint(snapshot, saved) {
+    if (!saved || typeof saved.inventory_frozen !== 'boolean' || saved.version !== 1 || saved.repository !== snapshot.repository.name_with_owner || saved.captured_at !== snapshot.branches.captured_at || !Array.isArray(saved.ordered_refs) || !Array.isArray(saved.pinned_tips) || saved.pinned_tips.length !== saved.ordered_refs.length || new Set(saved.pinned_tips.map((t) => t.ref)).size !== saved.pinned_tips.length) invalid();
+    const refs = ordered(snapshot).map((b) => b.name);
+    if (new Set(saved.ordered_refs).size !== saved.ordered_refs.length || saved.ordered_refs.some((ref) => !refs.includes(ref)) || (saved.inventory_frozen && JSON.stringify(refs) !== JSON.stringify(saved.ordered_refs))) invalid();
+    if (saved.baseline_sha !== null && saved.baseline_sha !== snapshot.branch_overview.baseline.tip_sha) invalid();
+    for (const t of saved.pinned_tips) if (!saved.ordered_refs.includes(t.ref) || (t.sha !== null && snapshot.branch_overview.items.find((b) => b.name === t.ref)?.tip_sha !== t.sha)) invalid();
+    const now = progress(snapshot);
+    // A checkpoint cannot hide a lost receipt/summary or skip an unread branch on resume.
+    if (!Array.isArray(saved.processed_refs) || saved.processed_refs.some((ref) => !now.rows.some((r) => r.ref === ref && r.terminal))) invalid();
+  }
+  function plan(snapshot, options = {}) {
+    if (options.checkpoint) validateCheckpoint(snapshot, options.checkpoint);
+    const budget = options.request_budget ?? 4;
+    if (!Number.isInteger(budget) || budget < 0 || budget > 10000 || (options.stop_reason != null && !['budget', 'time', 'user', 'connection'].includes(options.stop_reason))) invalid();
+    const p = progress(snapshot), saved = checkpoint(snapshot, p), inventory = inventoryRequest(snapshot);
+    let phase, requests = [], tasks = [], branch = null;
+    if (inventory) { phase = 'enumerate_all_pages'; requests = [inventory]; }
+    else {
+      branch = ordered(snapshot).find((b) => b.name === p.resume_ref);
+      if (branch) {
+        const work = pending(snapshot, branch);
+        phase = branch.name === snapshot.branch_overview.baseline.name ? 'inspect_default_branch_first' : 'inspect_next_branch';
+        requests = work.requests;
+        if (work.task) tasks = [work.task];
+      } else phase = p.inventory_complete ? 'finished_all_targets' : 'finished_known_targets_partial_inventory';
+    }
+    const inFlight = options.in_flight_keys || [];
+    if (!Array.isArray(inFlight) || inFlight.length > 4 || inFlight.some((k) => !requests.some((q) => q.key === k))) invalid();
+    const paused = options.stop_reason != null || (budget === 0 && requests.length > 0);
+    const dispatch = paused ? [] : requests.filter((q) => !inFlight.includes(q.key)).slice(0, Math.min(budget, 4));
+    const output = { phase: paused ? 'paused' : inFlight.length && !dispatch.length ? 'waiting_for_receipts' : phase, target_ref: branch?.name ?? null, requests: dispatch, tasks: paused ? [] : tasks, pending_request_keys: requests.map((q) => q.key), in_flight_keys: [...inFlight], max_parallel: 4, paused, stopped_reason: options.stop_reason ?? (paused ? 'budget' : null), progress: p, checkpoint: saved };
+    // In-flight is a dispatch fact, never evidence of a successful read.
+    if (inFlight.length && branch) output.progress = { ...p, rows: p.rows.map((r) => r.ref === branch.name && r.state === 'not_started' ? { ...r, state: 'in_progress' } : r), counts: { ...p.counts, not_started: p.counts.not_started - (p.rows.find((r) => r.ref === branch.name)?.state === 'not_started' ? 1 : 0), in_progress: p.counts.in_progress + (p.rows.find((r) => r.ref === branch.name)?.state === 'not_started' ? 1 : 0) } };
+    return output;
+  }
+  root.GitHubReviewExploration = Object.freeze({ progress, plan, validateCheckpoint });
 })(globalThis);
 
 /* Inline into a native visualization fragment. No network, tool calls or storage. */
@@ -459,10 +579,11 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const text = (parent, tag, value) => { const n = doc.createElement(tag); n.textContent = clean(value); parent.appendChild(n); return n; };
     const repository = snapshot.repository.name_with_owner, adapter = snapshot.review_core?.adapter;
     const targets = overview.items.map((b) => ({ kind: 'branch', branch_ref: b.name, sha: b.tip_sha }));
+    const filesOf = (b) => [...(b.content_review?.evidence || []), ...(b.content_review?.delta?.evidence || [])].filter((f, i, a) => a.findIndex((other) => other.id === f.id) === i);
     // File selection is revision/path based in the connector adapter; never invent Work file_id.
     if (adapter === 'chat_github') {
       const seen = new Set();
-      for (const b of overview.items) for (const f of b.content_review?.evidence || []) if (f.state === 'read') {
+      for (const b of overview.items) for (const f of filesOf(b)) if (f.state === 'read') {
         const key = f.sha + '/' + f.path;
         if (!seen.has(key)) { seen.add(key); if (targets.length < root.GitHubReviewCore.contract.limits.selection_targets) targets.push({ kind: 'file', sha: f.sha, path: f.path }); }
       }
@@ -471,14 +592,14 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const summaries = Array.isArray(model.summaries) ? model.summaries : [];
     if (summaries.length > root.GitHubReviewCore.contract.limits.branch_cards) throw new Error('Too many summaries');
     for (const b of overview.items) {
-      const files = b.content_review?.evidence || [];
-      if (!Array.isArray(files) || files.length > 2) throw new Error('Invalid content evidence');
-      for (const f of files) if (f.sha !== b.tip_sha || !root.GitHubReviewSurvey.safePath(f.path) || !['read', 'empty', 'unavailable', 'omitted_sensitive'].includes(f.state) || f.id !== root.GitHubReviewSurvey.key(repository, f.sha, f.path) || (f.state === 'read' && (typeof f.excerpt !== 'string' || f.excerpt.length > 8192 || f.requested_end_line !== 60))) throw new Error('Invalid content evidence');
+      const files = filesOf(b);
+      if (!Array.isArray(files) || files.length > 3) throw new Error('Invalid content evidence');
+      for (const f of files) if ((f.sha !== b.tip_sha && f.sha !== snapshot.branch_overview.baseline.tip_sha) || !root.GitHubReviewSurvey.safePath(f.path) || !['read', 'empty', 'unavailable', 'omitted_sensitive'].includes(f.state) || f.id !== root.GitHubReviewSurvey.key(repository, f.sha, f.path) || (f.state === 'read' && (typeof f.excerpt !== 'string' || f.excerpt.length > 8192 || f.requested_end_line !== 60))) throw new Error('Invalid content evidence');
     }
 
     function summary(b, field = 'purpose') {
-      const s = summaries.find((s) => s.branch_id === b.branch_id && s.tip_sha === b.tip_sha)?.[field];
-      const evidence = new Set((b.content_review?.evidence || []).filter((f) => f.state === 'read').map((f) => f.id));
+      const s = summaries.find((s) => s.branch_id === b.branch_id && s.tip_sha === b.tip_sha)?.[field] ?? b.content_review?.summary?.[field];
+      const evidence = new Set(filesOf(b).filter((f) => f.state === 'read').map((f) => f.id));
       if (s && ['inference', 'author_claim'].includes(s.kind) && typeof s.text === 'string' && s.text.length <= 480 && Array.isArray(s.evidence) && s.evidence.length && s.evidence.every((id) => evidence.has(id))) return clean(s.text) + (s.kind === 'inference' ? ' [GPT推定]' : ' [著者の説明]');
       if (field === 'difference') return '内容の違いは未確認（行数・枝名だけで意味を断定しません）';
       const file = (b.content_review?.evidence || []).find((f) => f.state === 'read');
@@ -487,7 +608,8 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const base = overview.baseline || {};
     query('overview-repository').textContent = repository + ' · ' + adapter + ' · 取得 ' + clean(model.captured_at);
     query('overview-baseline').textContent = '常時表示する既定基準: ' + (base.name || '不明') + ' · ' + (base.tip_sha || 'tip未取得');
-    const bc = overview.branch_coverage || {}, cc = overview.content_coverage || {};
+    const bc = overview.branch_coverage || {}, cc = overview.content_coverage || {}, exploration = overview.exploration;
+    const stateNames = {not_started:'未着手',in_progress:'進行中',checked:'確認済（限定範囲）',partial:'部分確認',unavailable:'取得不能'};
     const coverage = query('overview-coverage');
     let page = 0, selected = null;
     const pageSize = root.GitHubReviewCore.contract.limits.overview_page_size;
@@ -500,8 +622,8 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
       const cmp = review?.comparison;
       text(details, 'p', cmp ? '比較: ' + cmp.status + ' · ahead ' + cmp.ahead_by + ' / behind ' + cmp.behind_by + ' · 基準 ' + cmp.base_sha + ' → ' + cmp.head_sha + ' · 差分ファイル一覧の完全性は未保証' : '基準との比較未取得・取得不能');
       text(details, 'p', b.history ? '観測履歴: ' + (b.history.commit_shas || []).join(' · ') : '枝の履歴・親SHAは未取得。以下のfileはtipの内容でありcommit差分ではありません。');
-      for (const f of review?.evidence || []) {
-        const section = text(details, 'section', ''); text(section, 'h3', f.path + ' · ' + f.state);
+      for (const f of filesOf(b)) {
+        const section = text(details, 'section', ''); text(section, 'h3', f.path + (f.sha !== b.tip_sha ? '（基準SHA側）' : '') + ' · ' + f.state);
         if (f.state !== 'read') { text(section, 'p', f.reason || '取得不能'); continue; }
         const link = text(section, 'a', f.sha + ' · L1–' + f.requested_end_line);
         // Derive links from validated selection data; never trust a supplied external URL.
@@ -521,6 +643,8 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
       cards.replaceChildren();
       for (const b of visible) {
         const card = text(cards, 'article', ''); card.dataset.branchId = b.branch_id; card.dataset.default = String(b.name === base.name);
+        const step = exploration?.rows.find((r) => r.ref === b.name);
+        if (step) text(card, 'p', '探索 ' + (step.index + 1) + ' · ' + stateNames[step.state] + ' · ' + step.stage);
         text(card, 'h3', (b.name === base.name ? '● 既定枝 · ' : '● ') + b.name);
         text(card, 'p', summary(b)); text(card, 'p', '他枝との違い: ' + summary(b, 'difference')); text(card, 'p', '内容: ' + (b.content_review?.state || 'unread') + ' · tip ' + (b.tip_sha?.slice(0, 12) || '未取得'));
         const cmp = b.content_review?.comparison;
@@ -530,6 +654,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
       prev.disabled = page === 0; next.disabled = (page + 1) * pageSize >= items.length;
       pageLabel.textContent = 'ページ ' + (page + 1) + '/' + Math.max(1, Math.ceil(items.length / pageSize)) + ' · 検索結果 ' + items.length + '枝';
       coverage.textContent = '一覧取得 ' + (bc.items_seen ?? overview.items.length) + ' / 正規化 ' + overview.items.length + ' / 表示対象 ' + overview.items.length + '枝 · この頁 ' + visible.length + '枝 · 一覧終端 ' + (bc.fully_enumerated ? '確認' : '未確認 (' + bc.stopped_reason + ')') + ' · 内容根拠あり ' + (cc.with_file_evidence ?? 0) + '/' + overview.items.length + ' · 未読・失敗も全件表示。親情報なしからDAGは生成しません。';
+      if (exploration) coverage.textContent += ' · 処理済 ' + exploration.counts.processed + ' / 残り ' + exploration.counts.remaining + ' / 未確認 ' + exploration.counts.not_confirmed + ' · 次 ' + (exploration.resume_ref || '取得済み対象の巡回終了') + ' · 全枝確認 ' + (exploration.all_checked ? '限定範囲で確認' : '未完了/部分確認あり');
     }
     search.addEventListener('input', () => { page = 0; paint(); }); prev.addEventListener('click', () => { page--; paint(); }); next.addEventListener('click', () => { page++; paint(); });
     paint();

@@ -16,8 +16,9 @@ function populate(x) {
   const names = x.branch_pages.flatMap((p) => p.branches.map((b) => b.branch));
   x.tip_resolutions = names.map((ref) => ({ ref, captured_at: at, result: { repository_full_name: repo, base: ref, head: ref, status: 'identical', total_commits: 0, files: [], base_commit: { sha: ref === 'main' ? A : B } } }));
   x.branch_reads = names.map((ref) => { const sha = ref === 'main' ? A : B; return { ref, sha, captured_at: at,
-    comparison: { repository_full_name: repo, base: A, head: sha, status: sha === A ? 'identical' : 'ahead', ahead_by: sha === A ? 0 : 1, behind_by: 0, files: [{ filename: 'src/worker.rs', status: 'modified' }] },
-    files: ['README.md', 'src/worker.rs'].map((path) => ({ path, start_line: 1, end_line: 60, captured_at: at, content: path === 'README.md' ? '# Synthetic queue\nHandles bounded jobs.' : 'pub fn process() { /* synthetic bounded worker */ }' })) }; });
+    comparison: { repository_full_name: repo, base: A, head: sha, status: sha === A ? 'identical' : 'ahead', ahead_by: sha === A ? 0 : 1, behind_by: 0, files: sha === A ? [] : [{ filename: 'src/worker.rs', status: 'modified' }] },
+    baseline_files: sha === A ? [] : [{sha:A,path:'src/worker.rs',start_line:1,end_line:60,captured_at:at,content:'pub fn process() { /* synthetic baseline */ }'}],
+    files: ['README.md', sha === A ? 'CMakeLists.txt' : 'src/worker.rs'].map((path) => ({ path, start_line: 1, end_line: 60, captured_at: at, content: path === 'README.md' ? '# Synthetic queue\nHandles bounded jobs.' : 'pub fn process() { /* synthetic bounded worker */ }' })) }; });
   return x;
 }
 function model(x) { return core.normalizeChat(x); }
@@ -26,7 +27,7 @@ test('42 branches including default #38 survive acquisition/normalization/displa
   const s = model(fixture()).snapshot, c = s.branches.coverage;
   assert.equal(c.items_seen, 42); assert.equal(c.normalized_count, 42); assert.equal(c.display_target_count, 42); assert.equal(c.fully_enumerated, true);
   assert.equal(s.branch_overview.items[37].name, 'main'); assert.equal(s.branch_overview.baseline.name, 'main');
-  const p = survey.plan(s); assert.equal(p.phase, 'resolve_all_tips'); assert.equal(p.requests.length, 42); assert.equal(p.max_parallel, 4);
+  const p = survey.plan(s); assert.equal(p.phase, 'inspect_default_branch_first'); assert.equal(p.requests.length, 1); assert.equal(p.requests[0].args.base, 'main'); assert.equal(p.progress.counts.remaining, 42); assert.equal(p.max_parallel, 4);
   assert.ok(p.requests.every((q) => q.method === 'compare_commits' && q.args.base === q.args.head));
   assert.equal(s.branch_overview.content_coverage.with_file_evidence, 0); assert.equal(s.dag.per_branch.length, 0);
 });
@@ -41,13 +42,13 @@ test('all fetched names survive more than 100 and the limit is explicit rather t
 test('full SHA comparison then bounded representative reads; same revision requests deduplicate', () => {
   const x = populate(fixture()), first = x.branch_reads[0]; x.branch_reads = [first, x.branch_reads[37]];
   const s = model(x).snapshot;
-  assert.equal(s.branch_overview.content_coverage.with_file_evidence, 42); assert.equal(s.branch_overview.content_coverage.unique_file_reads, 4);
+  assert.equal(s.branch_overview.content_coverage.with_file_evidence, 42); assert.equal(s.branch_overview.content_coverage.unique_file_reads, 5);
   assert.ok(s.branch_overview.items[1].content_review.reused_revision);
   delete x.branch_reads[0].files[1]; x.branch_reads[0].files = x.branch_reads[0].files.filter(Boolean);
-  let p = survey.plan(model(x).snapshot); assert.equal(p.requests.filter((r) => r.method === 'compare_commits').length, 1); // missing per-ref comparison, shared SHA pair
+  let p = survey.plan(model(x).snapshot); assert.equal(p.requests.filter((r) => r.method === 'compare_commits').length, 0); // missing per-ref comparison, shared SHA pair
   // Provide comparisons but no files to verify deduplicated read requests, not 84 duplicate calls.
-  populate(x); for (const r of x.branch_reads) r.files = [];
-  p = survey.plan(model(x).snapshot); assert.equal(p.requests.length, 4); assert.ok(p.requests.every((r) => r.method === 'fetch_file' && r.args.ref.length === 40 && r.args.start_line === 1 && r.args.end_line === 60));
+  populate(x); for (const r of x.branch_reads) {r.files = []; r.baseline_files=[];}
+  p = survey.plan(model(x).snapshot); assert.equal(p.requests.length, 2); assert.ok(p.requests.every((r) => r.method === 'fetch_file' && r.args.ref.length === 40 && r.args.start_line === 1 && r.args.end_line === 60));
   populate(x); assert.equal(survey.plan(model(x).snapshot).requests.length, 0);
 });
 
@@ -58,7 +59,7 @@ test('wrong SHA/base/path, contradictory cache data and unbounded file responses
 });
 
 test('missing files and comparison do not become inspected; sensitive content omitted only after connector transfer', () => {
-  const x = populate(fixture(1)); x.tip_resolutions[0].result.base_commit.sha = A; x.branch_reads[0].sha = A; x.branch_reads[0].comparison.head = A;
+  const x = populate(fixture(1)); x.tip_resolutions[0].result.base_commit.sha = A; x.branch_reads[0].sha = A; x.branch_reads[0].comparison.head = A; x.branch_reads[0].baseline_files = [];
   x.repository_metadata.default_branch = 'feature/0'; x.branch_reads[0].comparison = null; x.branch_reads[0].comparison_error = 'unavailable';
   x.branch_reads[0].files[0] = { ...x.branch_reads[0].files[0], content: '+password=synthetic-secret' };
   x.branch_reads[0].files[1].path = 'CMakeLists.txt'; delete x.branch_reads[0].files[1].content; x.branch_reads[0].files[1].error = 'not_found';
@@ -85,7 +86,7 @@ test('shipped template has concrete controls; 42 branch search/pagination/defaul
   const evidence = m.snapshot.branch_overview.items[0].content_review.evidence[1];
   m.summaries = [{ branch_id: m.snapshot.branch_overview.items[0].branch_id, tip_sha: B, purpose: { text: 'キュー処理を限定する', kind: 'inference', evidence: [evidence.id] } }];
   const view = ui.mount(element, m, () => ({ sendFollowUpMessage: (p) => calls.push(p) }));
-  assert.equal(c['overview-cards'].children.length, 20); assert.ok(c['overview-baseline'].textContent.includes('main')); assert.ok(texts(c['overview-cards']).includes('キュー処理を限定する'));
+  assert.equal(c['overview-cards'].children.length, 20); assert.ok(texts(c['overview-cards']).includes('進行中')); assert.ok(c['overview-coverage'].textContent.includes('処理済 0 / 残り 42')); assert.ok(c['overview-baseline'].textContent.includes('main')); assert.ok(texts(c['overview-cards']).includes('キュー処理を限定する'));
   await c['overview-next'].click(); assert.equal(view.state().page, 1); assert.ok(texts(c['overview-cards']).includes('main'));
   await c['overview-next'].click(); assert.equal(c['overview-cards'].children.length, 2);
   c['overview-search'].value = 'main'; c['overview-search'].handlers.input(); assert.equal(view.state().matched, 1); assert.equal(view.state().page, 0);
@@ -115,9 +116,9 @@ test('short-input acceptance contract applies both products and exposes failed t
   const scenario = JSON.parse(fs.readFileSync(path.join(root, 'docs/examples/unified-branch-survey.json')));
   assert.equal(scenario.short_input, 'このレポを見て'); assert.deepEqual(scenario.expected.visible_pages, [20, 20, 2]);
   const x = populate(fixture()); x.tip_resolutions[0] = { ref: 'feature/0', captured_at: at, error: 'synthetic_failed' }; x.branch_reads.shift();
-  let s = model(x).snapshot; assert.equal(s.branch_overview.items[0].content_review.tip_error, 'tip_resolution_failed'); assert.equal(survey.plan(s).requests.length, 0);
+  let s = model(x).snapshot; assert.equal(s.branch_overview.items[0].content_review.tip_error, 'tip_resolution_failed'); assert.equal(survey.plan(s).requests.length, 0); assert.equal(survey.plan(s).tasks.length, 1); assert.equal(survey.plan(s).progress.complete, false);
   const y = populate(fixture()); y.branch_reads[0].comparison = null; y.branch_reads[0].comparison_error = 'unavailable'; y.branch_reads[0].files = [];
   // No repeated comparison. Other same-tip evidence is safely reused; distinct revisions still get bounded reads.
   s = model(y).snapshot; assert.ok(!survey.plan(s).requests.some((r) => r.method === 'compare_commits'));
-  assert.equal(s.branch_overview.items[0].content_review.state, 'partial');
+  assert.equal(s.branch_overview.items[0].content_review.state, 'inspected'); // identical SHA evidence/compare reused; semantic summary remains pending
 });

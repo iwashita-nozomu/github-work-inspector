@@ -17,10 +17,11 @@ Chat用sourceは `plugins/github-work-inspector-chat`。private account登録向
 同一ref compareで観測tipを解決できても親一覧は得られず、完全DAGを作りません。fetch_commitにはfile/byte制限がなく、
 Workのfile限定転送・モデルへ渡す前の秘匿も適用されません。詳細は [Chatアダプタ](docs/chat-review-workflow.md)。
 
-共通入口v0.2.0は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
-限定読取りを行います。最大10頁/1000枝、各2file・60行・表示8KiB。失敗・未読・内容不足を分け、枝数と内容coverageを
+共通入口v0.2.1は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
+限定読取りを行います。最大10頁/1000枝、各2fileと基準側追加1file・60行・表示8KiB。失敗・未読・内容不足を分け、枝数と内容coverageを
 図内へ表示します。parentsがないconnectorでは履歴DAGを捏造しません。全branchの全文監査ではありません。
-共有Survey.planは未取得read requestを列挙し、hostが既存GitHub toolsを実行します。JSやSkill単独でホストの遵守は強制しません。
+共有Survey.planは全頁列挙→既定枝の限定調査→残りのref固定順の巡回を計画します。処理済み/未確認と5状態、終了条件、予算停止時のcheckpoint+観測snapshotによる再開を実装し、未読での終了を防ぎます。代表fileの基準側が未読なら部分確認で、同じREADMEのみで差分確認済みとはしません。
+未取得read requestを列挙し、hostが既存GitHub toolsを実行します。JSやSkill単独でホストの遵守は強制しません。
 
 `core/overview.fragment.html` と共通JSが検索・20件ページ切替・常時基準・選択内容/根拠panelを実装します。
 GPTの意味要約は同じtipの取得成功file evidenceに結び付け、ない場合は要約未生成/内容未確認を表示します。

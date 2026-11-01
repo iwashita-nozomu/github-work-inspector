@@ -1,20 +1,22 @@
 {
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "authored_files": {
-    "core/adapters/chat.md": "baf98db2209bda5c29114b1ef267e1f865f4b68c086646370aed2e69313bf14c",
+    "core/adapters/chat.md": "6b7353389235c7d83c384b144bd84d59a8d5b91d941fa15857e8b1f440b0dfc1",
     "core/adapters/work.md": "43936b740e61d1ff76180a0a978f4ba1b2e3e01574ccb5b56de96f094ed7c4fa",
-    "core/contract.json": "cbdc0e3052e269af9de7db9690fc86a0bbcf666eec5a501d73ff46582a2be396",
+    "core/contract.json": "b29a70071302a2375b0c6fe1098e316155c7ba2906c33923cd10f453f9a3f132",
     "core/entries/chat.md": "4e94756b9e8e6bef6c93ba0f8daff85de96a231c8d86a27b43e1d9c0ffbe02a6",
     "core/entries/work-cli.md": "8d0e0df2e5d9e75c6da369a1f7b016aaefacc21860fdfcbe0db8e7f19f53b611",
     "core/entries/work-plugin.md": "7a08b98180ace435aef4fb98d56db9873b3a75f46e181cb493391e7cfea53bc8",
-    "core/normalize.js": "9c9decd564c11d892ac698e54bb9d0c840125b2fefdabc9a04d8c46c24e728da",
-    "core/observation.schema.json": "1b5b319082cfc5328c55d963e67099c1b126404d375464dbefa9e6fe423ffb46",
+    "core/exploration.js": "57133d2fe0d8446f05c9a10e4e74aec6391f6be108abb3c72c241e13b4145428",
+    "core/exploration.md": "dad557a332dd24448457a5b1f5b6c3615800b5cb383afd3f7b53be2c88a3e986",
+    "core/normalize.js": "1d8304883cbfdf6806e9b7b4a8ab7b0079176c387143c40023c852cd31f8d1fc",
+    "core/observation.schema.json": "859b17ee99daf0c6827a8f6a7801a584f6da50ecb25ecd37de9a2e21b9956bc4",
     "core/overview.fragment.html": "b497efeed0a7f69f056959a56ee38fbd76b22a72f192500c1999d061e1a415f3",
-    "core/overview.js": "64a720f1ea99e4a67077fcf29d14b9ddbb79b374de0ece10d5bf596df7af47ee",
+    "core/overview.js": "48214b2dc0dbe1691565496610693d21647142a8d068737981374ede8c107d46",
     "core/selection.js": "9f9e4a48bc87b784be636baede7b1d47a2d19d25910a46e303973075b5938fd7",
-    "core/survey.js": "820f332109429572e930b4575c57bd5daca1414d47aa5c7bee5992c53f0da759",
+    "core/survey.js": "393c0137520cd43cada350f2175f354a6908d761c5356c197ffcfddaa04a4c2b",
     "core/workflow.md": "b854aae381d86b1554684c2ed36b1acbf6d5d3a953d256cd87080f8bb1eab822"
   },
   "consistency_only_not_signature": true,
-  "core_digest": "44f3335aec04382d513becd97ba6a2dff180b669ae02a536f36debeb6d73606f"
+  "core_digest": "c5259195720f8f3add627125081ea8d193b7bc9b4a4875dd9013c0a4f1063d3c"
 }

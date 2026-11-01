@@ -17,29 +17,20 @@ scriptでは実際に正規化と描画を実行する。取得の実行主体�
    空応答でもcursorがあれば未終端。cursor:nullまで、最大10頁/1000枝。反復cursor/上限/失敗時はpartialと理由を明示。
    ページごとのbranches/cursor/captured_atを残す。取得枝数=正規化枝数=全表示対象数を検査し、表示1頁20件と混同しない。
    既定枝が後ろにあっても消さず、基準欄へ常時表示。範囲外/未取得ならその事実を残す。
-3. **全取得枝について** compare_commits({base:REF,head:REF,repo_full_name:REPO})を行う（最大4並列の有限batch）。
-   identical/total_commits:0/files:[]とbase_commit.shaを検証し、完全SHAへ固定。tip_resolutionsにref/result/取得時刻を残す。
-   失敗時はtip_resolutionsに{ref,captured_at,error:"tip_resolution_failed"}を残し、未解決として記録。最初の2枝・recent8件だけを全枝調査と呼ばない。
-4. 基準tipSHAと各枝tipSHAをcompare_commitsで比較する。同じSHAペアの応答は再利用できるが、枝所属や親一覧と混同しない。
-   comparisonは返ったrepository_full_name/base/head/status/ahead_by/behind_by/filesに固定。異なるSHAの応答を流用しない。
-   比較不能（例:共通祖先なし）はcomparison_errorに記録し、無限再試行しない。compareのfile一覧の完全性は未保証。
-5. **全枝の内容を読む**: GitHubReviewSurvey.pathsでREADME.mdと比較file一覧中の安全な代表code/config/doc1件を選ぶ。
-   候補がない時だけ既知の標準入口CMakeLists.txtを1回probeし、404を別path総当たりで迂回しない。
-   fetch_file({repository_full_name:REPO,ref:FULL_SHA,path:PATH,start_line:1,end_line:60})を使う。
-   `.env`/鍵/認証/秘密らしいpathやdata/巨大成果物は対象外。代表選択はmetadataだけ、全文検索で秘密を探さない。
-   1枝2file、各60行/表示8KiBを上限にする。providerが行制限を守ることは応答で確認。上限超過/秘密らしい内容は表示省略。
-   repo+完全SHA+path+行範囲が同じ読取りだけ再利用する。可変refや別SHAの内容は流用しない。
-   branch_readsはref/sha/captured_at/comparisonまたはcomparison_error/filesを保持し、各fileは
-   path/start_line:1/end_line:60/captured_at/contentまたはerrorを持つ。raw内容をログ/公開fixtureへ保存しない。
-6. normalizeChatへrepository metadata、全branch_pages、tip_resolutions、branch_readsを渡す。
-   GitHubReviewSurvey.planは未取得tip→基準比較→未取得fileの有限requestを返す。取得済み応答を渡して再計画し、
-   全枝がinspected/partial/unavailable/unresolvedとして説明できるまで続ける。明示的失敗や利用者の範囲制限を隠さない。
-   with_file_evidenceとinspectedは別物。READMEだけ/比較不能/不足はpartial、全branch監査完了とは言わない。
-   failed comparison/fileは1回の試行結果を残す。自動リトライループを作らない。
-7. GPTが**実際のfile抜粋**を読んで各枝の短い目的を要約する。summariesはbranch_id/tip_shaと
-   purpose/difference:{text,kind:inference|author_claim,evidence:[file evidence id]}へ結び付ける。
-   UIは同一tipの取得成功fileのIDがない要約を採用しない。枝名・PRだけで内容を確認したことにしない。
-   READMEと代表fileの60行内で分からない違いは不明。意図/完了/科学的妥当性を断定しない。
+3. 共通核の「全枝を網羅する探索順」に従う。既定枝を先に限定調査・要約してから、残りを固定順で巡回する。
+   Survey.planのrequestsはhostが既存GitHub appで実行し、各応答で再正規化する。
+   tip_resolutionsは{ref,captured_at,result}、失敗は{ref,captured_at,error:"tip_resolution_failed"}。
+   branch_readsはref/sha/captured_at/comparisonまたはcomparison_error/filesを保持する。
+   filesはpath/start_line:1/end_line:60/captured_at/contentまたはerror。基準側の代表fileは
+   baseline_files:[{sha:BASE_FULL_SHA,path,start_line:1,end_line:60,captured_at,contentまたはerror}] に記録する。
+   基準側は同一repo/基準完全SHAへ固定。比較resultのbase/headも完全SHAと照合する。
+4. README+代表fileは各60行/表示8KiB、基準側追加1fileまで。秘密らしいpath/内容、data、巨大成果物を避け、
+   取得不能や不足は明示する。既知のCMakeLists.txt probe失敗時に別path総当たりはしない。
+   providerの行範囲制限を応答で確認する。raw内容をログ/公開fixtureへ保存しない。
+5. branch_summariesで各refの目的と違いを記録し、全枝のexploration状態・未確認数・再開位置を図内へ表示する。
+   要約はfile証拠に固定し、同じREADMEだけから枝固有の違い・意図・完了を断定しない。
+   normalizeChatへ全branch_pages/tip_resolutions/branch_reads/branch_summariesを渡す。
+   request_budgetで止まっても未着手枝を落とさず、checkpointと観測一式を保持する。
 
 PR（search_prs最大20件）とrecent commits（search_commits最大8件）は補助標本。枝ref引数のないrecentは
 全枝の履歴ではない。exact head repo/refでのみPRを関連付ける。parents未提供はnull、DAGの線を作らない。

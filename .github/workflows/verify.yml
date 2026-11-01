@@ -28,6 +28,7 @@ jobs:
           python scripts/sync-review-core.py --check
           node scripts/test-chat-core.cjs
           node scripts/test-branch-survey.cjs
+          node scripts/test-exploration.cjs
           python scripts/test-chat-package.py
       - name: Native selection bridge offline fixtures
         run: node scripts/test-review-selection.cjs
