@@ -25,8 +25,8 @@ def outputs():
     contract = (ROOT/'core/contract.json').read_text(encoding='utf-8')
     bundle = ('/* Generated from core/; consistency digest: ' + digest + ' */\n'
               + 'globalThis.GitHubReviewCoreContract = Object.freeze(' + contract.strip() + ');\n'
-              + (ROOT/'core/normalize.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/survey.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/selection.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/overview.js').read_text(encoding='utf-8'))
-    common = (ROOT/'core/workflow.md').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.md').read_text(encoding='utf-8')
+              + (ROOT/'core/normalize.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/survey.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history-graph.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/selection.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/overview.js').read_text(encoding='utf-8'))
+    common = (ROOT/'core/workflow.md').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.md').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history.md').read_text(encoding='utf-8')
     work = (ROOT/'core/adapters/work.md').read_text(encoding='utf-8')
     chat = (ROOT/'core/adapters/chat.md').read_text(encoding='utf-8')
     result = {

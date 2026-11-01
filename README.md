@@ -14,18 +14,19 @@ Chatの正規化JSはnative fragment等で実行可能な場合の共通参照�
 
 Chat用sourceは `plugins/github-work-inspector-chat`。private account登録向けだけで、独自MCP/serverやbinaryを
 含みません。既定枝はrepo metadata、枝検索は名前だけ、recent commitsは全枝の履歴ではありません。
-同一ref compareで観測tipを解決できても親一覧は得られず、完全DAGを作りません。fetch_commitにはfile/byte制限がなく、
+同一ref compareはtipを解決し、既存GitHub appの固定GET `/git/commits/FULL_SHA` で実parentsを取得します。fetch_commitにはfile/byte制限がなく、
 Workのfile限定転送・モデルへ渡す前の秘匿も適用されません。詳細は [Chatアダプタ](docs/chat-review-workflow.md)。
 
-共通入口v0.2.1は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
+共通入口v0.3.0は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
 限定読取りを行います。最大10頁/1000枝、各2fileと基準側追加1file・60行・表示8KiB。失敗・未読・内容不足を分け、枝数と内容coverageを
-図内へ表示します。parentsがないconnectorでは履歴DAGを捏造しません。全branchの全文監査ではありません。
-共有Survey.planは全頁列挙→既定枝の限定調査→残りのref固定順の巡回を計画します。処理済み/未確認と5状態、終了条件、予算停止時のcheckpoint+観測snapshotによる再開を実装し、未読での終了を防ぎます。代表fileの基準側が未読なら部分確認で、同じREADMEのみで差分確認済みとはしません。
+図内へ表示します。親付きGit dataから96commit・深さ12・枝ごと32件までの有限DAGを構成し、親が未取得なら境界を示します。全branchの全文監査ではありません。
+共有Acquisition.planは全頁列挙→既定枝の限定調査→残りのref固定順の巡回を計画します。処理済み/未確認と5状態、終了条件、予算停止時のcheckpoint+観測snapshotによる再開を実装し、未読での終了を防ぎます。代表fileの基準側が未読なら部分確認で、同じREADMEのみで差分確認済みとはしません。
 未取得read requestを列挙し、hostが既存GitHub toolsを実行します。JSやSkill単独でホストの遵守は強制しません。
 
 `core/overview.fragment.html` と共通JSが検索・20件ページ切替・常時基準・選択内容/根拠panelを実装します。
 GPTの意味要約は同じtipの取得成功file evidenceに結び付け、ない場合は要約未生成/内容未確認を表示します。
 `scripts/render-overview.cjs --model MODEL.json --out VIEW.html` は同じbuildFragmentでローカルfragmentを組立てます。
+SVG履歴図は実parent辺、分岐・merge、取得時refラベルと選択したcommitの詳細を表示します。枝の内容カードは履歴図の代替ではありません。
 サーバーは起動しません。生成ファイル・模擬DOM操作・private package作成は、Chat/Workでの実描画/送信成功とは異なります。
 
 `scripts/package-chat.py --out PACKAGE.zip --source-sha FULL_SHA --github-app-id VERIFIED_APP_ID` で、backendで確認した

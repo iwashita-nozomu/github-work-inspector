@@ -10,6 +10,10 @@
     const text = (parent, tag, value) => { const n = doc.createElement(tag); n.textContent = clean(value); parent.appendChild(n); return n; };
     const repository = snapshot.repository.name_with_owner, adapter = snapshot.review_core?.adapter;
     const targets = overview.items.map((b) => ({ kind: 'branch', branch_ref: b.name, sha: b.tip_sha }));
+    const commitShas = new Set(snapshot.dag.nodes.map(n=>n.sha));
+    for(const b of overview.items) if(b.tip_sha) commitShas.add(b.tip_sha);
+    for(const b of snapshot.dag.outside_window_parents||[]) commitShas.add(typeof b==='string'?b:b.sha);
+    for(const sha of [...commitShas].slice(0,512)) if(targets.length < root.GitHubReviewCore.contract.limits.selection_targets) targets.push({kind:'commit',sha});
     const filesOf = (b) => [...(b.content_review?.evidence || []), ...(b.content_review?.delta?.evidence || [])].filter((f, i, a) => a.findIndex((other) => other.id === f.id) === i);
     // File selection is revision/path based in the connector adapter; never invent Work file_id.
     if (adapter === 'chat_github') {
@@ -44,7 +48,20 @@
     const coverage = query('overview-coverage');
     let page = 0, selected = null;
     const pageSize = root.GitHubReviewCore.contract.limits.overview_page_size;
+    const graphElement=element.querySelector('[data-history-graph]');
+    if(!graphElement) throw new Error('Missing history graph template');
+    const graph=root.GitHubReviewHistoryGraph.mount(graphElement,snapshot.dag,overview.items,{onRef:(ref)=>{if(ref)show(overview.items.find(b=>b.name===ref));else{selected=null;details.hidden=true;selection.clear();paint();}},onCommit:showCommit});
+    function showCommit(sha){
+      const target=selection.targets.find(t=>t.kind==='commit'&&t.sha===sha);if(!target)return;
+      details.hidden=false;details.replaceChildren();const node=snapshot.dag.nodes.find(n=>n.sha===sha);
+      text(details,'h3','commit '+sha);text(details,'p',node?.subject||'commit内容は取得範囲外です。');
+      text(details,'p',Array.isArray(node?.parents)?'観測parents: '+(node.parents.join(' · ')||'0（root）'):'親SHAは未取得です。');
+      text(details,'p','ref tip: '+(overview.items.filter(b=>b.tip_sha===sha).map(b=>b.name).join(' · ')||'現在tipのラベルなし'));
+      const link=text(details,'a','GitHubの完全SHA根拠');link.setAttribute('href','https://github.com/'+repository+'/commit/'+sha);link.setAttribute('target','_blank');link.setAttribute('rel','noopener noreferrer');
+      text(details,'p','選択だけではdiffを取得しません。「詳しく聞く」で対象commitの根拠を追加確認します。');selection.select(target.id);
+    }
     function show(b) {
+      graph.focus(b.name);
       selected = b.branch_id; details.hidden = false; details.replaceChildren();
       text(details, 'h3', b.name + ' · ' + (b.tip_sha || 'tip不明'));
       text(details, 'p', summary(b)); text(details, 'p', '他枝との違い: ' + summary(b, 'difference'));
@@ -89,7 +106,7 @@
     }
     search.addEventListener('input', () => { page = 0; paint(); }); prev.addEventListener('click', () => { page--; paint(); }); next.addEventListener('click', () => { page++; paint(); });
     paint();
-    return Object.freeze({ select: (id) => { const b = overview.items.find((b) => b.branch_id === id); if (!b) throw new Error('Unknown branch'); show(b); }, selection, state: () => ({ page, matched: filtered().length, total: overview.items.length, selected }) });
+    return Object.freeze({ graph, select: (id) => { const b = overview.items.find((b) => b.branch_id === id); if (!b) throw new Error('Unknown branch'); show(b); }, selection, state: () => ({ page, matched: filtered().length, total: overview.items.length, selected }) });
   }
   function buildFragment(template, bundle, model) {
     if (typeof template !== 'string' || !template.includes('/*__REVIEW_BUNDLE__*/') || !template.includes('/*__REVIEW_MODEL__*/') || typeof bundle !== 'string' || /<\/script/i.test(bundle)) throw new Error('Invalid overview template');

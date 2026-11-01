@@ -178,6 +178,62 @@
             },
             "bounded": {
               "const": true
+            },
+            "parent_fields_available": {
+              "type": "boolean"
+            },
+            "history_coverage": {
+              "type": "object",
+              "required": [
+                "limits",
+                "attempted",
+                "observed",
+                "failed",
+                "pending",
+                "bounded_finished",
+                "fully_enumerated",
+                "pagination",
+                "atomic"
+              ],
+              "properties": {
+                "atomic": {
+                  "const": false
+                },
+                "bounded_finished": {
+                  "type": "boolean"
+                },
+                "fully_enumerated": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "per_branch": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "type": "object",
+                "required": [
+                  "branch",
+                  "tip_sha",
+                  "commit_shas",
+                  "coverage"
+                ],
+                "properties": {
+                  "commit_shas": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "$ref": "#/$defs/sha"
+                    }
+                  },
+                  "tip_sha": {
+                    "$ref": "#/$defs/nullableSha"
+                  }
+                }
+              }
+            },
+            "outside_window_parents": {
+              "type": "array"
             }
           }
         }

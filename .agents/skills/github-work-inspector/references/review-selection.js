@@ -1,6 +1,6 @@
-/* Generated from core/; consistency digest: c5259195720f8f3add627125081ea8d193b7bc9b4a4875dd9013c0a4f1063d3c */
+/* Generated from core/; consistency digest: 054f87674a310cf7b3c9edaa6ac801284626a51bc391add6e6f45e83c66f1bd2 */
 globalThis.GitHubReviewCoreContract = Object.freeze({
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -21,7 +21,11 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     "content_lines": 60,
     "content_bytes": 8192,
     "overview_page_size": 20,
-    "baseline_counterpart_files": 1
+    "baseline_counterpart_files": 1,
+    "history_commits": 96,
+    "history_depth": 12,
+    "history_per_branch": 32,
+    "history_boundary_display": 24
   },
   "profiles": {
     "rust_gh": {
@@ -35,7 +39,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     },
     "chat_github": {
       "runtime": "host GPT with the existing GitHub app; optional native JavaScript view",
-      "observed_parent_fields": false,
+      "observed_parent_fields": true,
       "branch_tip_sha_in_list": false,
       "default_branch_metadata": true,
       "commit_file_transfer_bounded": false,
@@ -134,8 +138,9 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const branches = retained.map((name) => ({ name, branch_id: id(name), sha: tips.get(name)?.sha ?? null, protected: null }));
     const items = branches.map((b) => ({ name: b.name, branch_id: b.branch_id, tip_sha: b.sha, tip_commit: nodes.find((c) => c.sha === b.sha) || null, history: null, comparison: { relation: b.name === defaultBranch && b.sha ? 'same_tip' : 'unavailable_parent_fields', child_to_parent_evidence_path: null, unmerged_changes: 'not_determined', ahead_behind: 'not_queried' }, related_pull_requests: pulls.filter((p) => p.head_repository === repository && p.head_branch === b.name).map((p) => ({ pull: p, association: 'same_repository_and_exact_head_ref', head_matches_tip: b.sha === null || p.head_sha === null ? null : b.sha === p.head_sha })) }));
     const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
+    root.GitHubReviewHistory.decorate(output.snapshot, input);
     root.GitHubReviewSurvey.decorate(output.snapshot, input);
-    output.snapshot.partial ||= !output.snapshot.branch_overview.exploration.all_checked;
+    output.snapshot.partial ||= !output.snapshot.branch_overview.exploration.all_checked || !output.snapshot.dag.history_coverage.fully_enumerated;
     return output;
   }
   function normalizeChatCommit(input) {
@@ -372,6 +377,169 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
   root.GitHubReviewExploration = Object.freeze({ progress, plan, validateCheckpoint });
 })(globalThis);
 
+/* Fixed GitHub Git-data GET acquisition and bounded ancestor queue. No network execution. */
+((root) => {
+  'use strict';
+  const invalid = () => { throw new Error('Invalid history observation'); };
+  const hash = (v) => typeof v === 'string' && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(v) ? v.toLowerCase() : invalid();
+  const repo = (v) => { if (typeof v !== 'string' || !/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?\/[a-z\d_.-]{1,100}$/i.test(v) || (['.','..'].includes(v.split('/')[1])||v.split('/')[0].includes('--'))) invalid(); return v.toLowerCase(); };
+  const clean = (v) => typeof v === 'string' ? v.slice(0,8192).split('\n')[0].replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\b(?:gh[pousr]_[a-z\d_]+|github_pat_[a-z\d_]+|(?:password|token|api_key)\s*[=:]\s*\S+)/ig,'[redacted]').slice(0,240) : '';
+  const date = (v) => typeof v === 'string' && Number.isFinite(Date.parse(v)) ? v : null;
+  function limits(input = {}) {
+    const out = { max_commits:input.max_commits??96,max_depth:input.max_depth??12,per_branch:input.per_branch??32 };
+    if (!Number.isInteger(out.max_commits)||out.max_commits<1||out.max_commits>256||!Number.isInteger(out.max_depth)||out.max_depth<0||out.max_depth>64||!Number.isInteger(out.per_branch)||out.per_branch<1||out.per_branch>100) invalid();
+    return out;
+  }
+  function request(repository, sha) { return { key:'history/'+hash(sha),method:'fetch',args:{url:'https://api.github.com/repos/'+repo(repository)+'/git/commits/'+hash(sha)} }; }
+  function receipt(q, response, captured_at) {
+    const expected = /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/git\/commits\/([a-f\d]{40}|[a-f\d]{64})$/i.exec(q?.args?.url||'');
+    if (!expected || request(expected[1],expected[2]).args.url !== q.args.url || q.key !== 'history/'+expected[2] || !date(captured_at)) invalid();
+    const d = response?.structuredContent?.structuredContent ?? response?.structuredContent ?? response;
+    if (response?.isError || d?.error) return {sha:expected[2],captured_at,error:'history_read_failed'};
+    const sourceURL=d?.url??d?.display_url??response?.structuredContent?.url??response?.url;
+    if (sourceURL !== q.args.url || typeof d.content !== 'string' || d.content.length>1024*1024) invalid();
+    let parsed; try { parsed=JSON.parse(d.content); } catch (_) { invalid(); }
+    if (hash(parsed.sha)!==expected[2]) invalid();
+    return {sha:expected[2],captured_at,result:{sha:hash(parsed.sha),message:clean(parsed.message),parents:Array.isArray(parsed.parents)?parsed.parents.map(p=>({sha:hash(p.sha)})):null,committer:{date:date(parsed.committer?.date)}}};
+  }
+  function decorate(snapshot, input) {
+    const records=input.history_commits||[], L=limits(input.history_limits), observed=new Map(), failed=new Map();
+    if (!Array.isArray(records)||records.length>L.max_commits) invalid();
+    for (const r of records) {
+      const sha=hash(r.sha); if(observed.has(sha)||failed.has(sha)||!date(r.captured_at)) invalid();
+      if (r.error) {failed.set(sha,{sha,captured_at:r.captured_at,code:'history_read_failed'});continue;}
+      const v=r.result;if(!v||hash(v.sha)!==sha) invalid();
+      if (v.parents!=null && (!Array.isArray(v.parents)||v.parents.length>256)) invalid();
+      const parents=Array.isArray(v.parents)?v.parents.slice(0,16).map(p=>hash(p.sha)):null;
+      if (parents && (new Set(parents).size!==parents.length||parents.includes(sha))) invalid();
+      observed.set(sha,{sha,subject:clean(v.message),committed_at:date(v.committer?.date),parents,parents_complete:Array.isArray(v.parents)&&v.parents.length<=16,parent_fields_observed:Array.isArray(v.parents),source:'github_git_data_commit',captured_at:r.captured_at,url:'https://github.com/'+snapshot.repository.name_with_owner+'/commit/'+sha});
+    }
+    // Reject inconsistent/cyclic input, never repair it by inventing graph order or edges.
+    const visiting=new Set(),done=new Set();function visit(sha){if(visiting.has(sha))invalid();if(done.has(sha)||!observed.has(sha))return;visiting.add(sha);for(const p of observed.get(sha).parents||[])visit(p);visiting.delete(sha);done.add(sha);}for(const sha of observed.keys())visit(sha);
+    const base=snapshot.branch_overview.baseline.name;
+    const branches=[...snapshot.branch_overview.items].sort((a,b)=>a.name===base?(b.name===base?0:-1):b.name===base?1:root.GitHubReviewSurvey.order(a.name,b.name));
+    const queue=[],queued=new Set(),depths=new Map();
+    for(const b of branches)if(b.tip_sha&&!queued.has(b.tip_sha)){queued.add(b.tip_sha);depths.set(b.tip_sha,0);queue.push({sha:b.tip_sha,depth:0});}
+    const depthBoundary=new Set();
+    for(let i=0;i<queue.length;i++){
+      const q=queue[i],n=observed.get(q.sha);if(!n)continue;
+      for(const p of n.parents||[]){if(q.depth>=L.max_depth){if(!observed.has(p))depthBoundary.add(p);continue;}if(!queued.has(p)){queued.add(p);depths.set(p,q.depth+1);queue.push({sha:p,depth:q.depth+1});}}
+    }
+    // Disconnected observations are rejected: every Git object must be reached from an observed ref.
+    if([...observed.keys(),...failed.keys()].some(sha=>!queued.has(sha)&&!depthBoundary.has(sha)))invalid();
+    const pending=queue.filter(q=>!observed.has(q.sha)&&!failed.has(q.sha)),attempts=records.length;
+    const boundaries=new Map();
+    for(const n of observed.values())for(const p of n.parents||[])if(!observed.has(p))boundaries.set(p,{sha:p,reason:failed.has(p)?'read_failed':depthBoundary.has(p)?'depth_limit':attempts>=L.max_commits?'commit_limit':'not_fetched'});
+    for(const b of branches)if(b.tip_sha&&!observed.has(b.tip_sha))boundaries.set(b.tip_sha,{sha:b.tip_sha,reason:failed.has(b.tip_sha)?'read_failed':attempts>=L.max_commits?'commit_limit':'tip_not_fetched'});
+    const perBranch=[];
+    for(const b of branches){
+      const todo=b.tip_sha?[b.tip_sha]:[],seen=new Set(),members=[],outside=new Set();let unknown=false;
+      for(let i=0;i<todo.length;i++){const sha=todo[i];if(seen.has(sha))continue;seen.add(sha);const n=observed.get(sha);if(!n||members.length>=L.per_branch){outside.add(sha);continue;}members.push(sha);if(n.parents===null||!n.parents_complete)unknown=true;for(const p of n.parents||[])todo.push(p);}
+      const coverage={requested_limit:L.per_branch,items_seen:members.length,fully_enumerated:!!b.tip_sha&&outside.size===0&&!unknown,has_more:outside.size>0||unknown,stopped_reason:!b.tip_sha?'tip_unresolved':members.length===0?'history_unavailable':outside.size?'bounded_window':unknown?'parent_fields_missing':'observed_roots',pagination:'not_applicable_single_git_object_endpoint',captured_at:snapshot.branches.captured_at};
+      b.history={commit_shas:members,coverage,error:b.tip_sha&&failed.has(b.tip_sha)?{code:'history_read_failed'}:null,outside_window_parents:[...outside]};
+      b.tip_commit=observed.get(b.tip_sha)||b.tip_commit;
+      perBranch.push({branch:b.name,branch_id:b.branch_id,tip_sha:b.tip_sha,commit_shas:members,coverage});
+    }
+    const recent=new Map(snapshot.dag.nodes.map(n=>[n.sha,n]));for(const [sha,n]of observed)recent.set(sha,n);
+    snapshot.dag={...snapshot.dag,nodes:[...recent.values()],per_branch:perBranch,outside_window_parents:[...boundaries.values()],parent_fields_available:[...observed.values()].some(n=>n.parents!==null),bounded:true,ordering:'explicit_child_parent_edges_not_search_order',edge_direction:'child_to_parent',history_coverage:{limits:L,attempted:attempts,observed:observed.size,failed:failed.size,pending:pending.length,tip_count:branches.filter(b=>b.tip_sha).length,observed_tip_count:branches.filter(b=>observed.has(b.tip_sha)).length,unresolved_refs:branches.filter(b=>!b.tip_sha).map(b=>b.name),bounded_finished:pending.length===0||attempts>=L.max_commits,fully_enumerated:pending.length===0&&boundaries.size===0&&failed.size===0&&[...observed.values()].every(n=>n.parents_complete)&&branches.every(b=>b.tip_sha!==null),pagination:'single Git commit objects; ancestor queue resumes by SHA; no list-page completeness claim',atomic:false},history_queue:pending,history_records:[...observed.keys(),...failed.keys()]};
+    snapshot.branch_overview.history_branch_count=perBranch.filter(b=>b.commit_shas.length).length;
+    return snapshot;
+  }
+  function plan(snapshot,options={}){
+    const c=snapshot.dag.history_coverage;if(!c)invalid();const budget=options.request_budget??4;if(!Number.isInteger(budget)||budget<0||budget>10000)invalid();
+    const refs=snapshot.branch_overview.items.map(b=>({ref:b.name,sha:b.tip_sha})).sort((a,b)=>root.GitHubReviewSurvey.order(a.ref,b.ref));
+    const saved={version:1,repository:snapshot.repository.name_with_owner,captured_at:snapshot.branches.captured_at,limits:c.limits,pinned_refs:refs,observed_shas:[...snapshot.dag.history_records].sort(),pending_shas:snapshot.dag.history_queue.map(q=>q.sha),parent_observations:snapshot.dag.nodes.filter(n=>n.source==='github_git_data_commit').map(n=>({sha:n.sha,parents:n.parents,parents_complete:n.parents_complete})).sort((a,b)=>root.GitHubReviewSurvey.order(a.sha,b.sha)),requires_observations_snapshot:true};
+    const old=options.checkpoint;
+    if(old){if(old.version!==1||old.repository!==saved.repository||old.captured_at!==saved.captured_at||JSON.stringify(old.limits)!==JSON.stringify(saved.limits)||!Array.isArray(old.pinned_refs)||!Array.isArray(old.observed_shas)||old.pinned_refs.some(b=>b.sha!==null&&!refs.some(r=>r.ref===b.ref&&r.sha===b.sha))||old.observed_shas.some(sha=>!saved.observed_shas.includes(sha))||!Array.isArray(old.parent_observations)||old.parent_observations.some(n=>!saved.parent_observations.some(x=>x.sha===n.sha&&JSON.stringify(x.parents)===JSON.stringify(n.parents)&&x.parents_complete===n.parents_complete)))invalid();}
+    const requests=c.attempted>=c.limits.max_commits?[]:snapshot.dag.history_queue.slice(0,Math.min(4,budget,c.limits.max_commits-c.attempted)).map(q=>request(snapshot.repository.name_with_owner,q.sha));
+    return {phase:budget===0&&!c.bounded_finished?'history_paused':c.bounded_finished?'history_window_finished':'read_history_ancestors',requests,tasks:[],checkpoint:saved,coverage:c,max_parallel:4};
+  }
+  // Default orchestration preserves the existing content traversal and adds observed history.
+  function acquire(snapshot,options={}){
+    const saved=options.checkpoint;
+    if(saved && saved.version!==1)invalid();
+    const legacy=saved&&!saved.content&&saved.repository?saved:null;
+    if(saved&&!legacy&&!saved.content)invalid();
+    const contentOptions={...options,checkpoint:legacy??saved?.content};delete contentOptions.in_flight_keys;
+    const content=root.GitHubReviewSurvey.plan(snapshot,contentOptions),history=plan(snapshot,{request_budget:options.request_budget,checkpoint:options.checkpoint?.history});
+    const out={...content,checkpoint:{version:1,content:content.checkpoint,history:history.checkpoint},workflow_complete:false,history_coverage:history.coverage};
+    if(content.phase==='enumerate_all_pages'||content.paused)return out;
+    const b=snapshot.branch_overview.items.find(b=>b.name===content.target_ref),known=new Set(snapshot.dag.history_records);
+    if(b?.tip_sha&&!known.has(b.tip_sha)&&history.coverage.attempted<history.coverage.limits.max_commits){
+      out.phase=options.request_budget===0?'history_paused':'read_branch_tip_history';out.paused=options.request_budget===0;out.tasks=[];out.requests=(options.request_budget===0)?[]:[request(snapshot.repository.name_with_owner,b.tip_sha)];return out;
+    }
+    if(content.progress.finished_known_targets){out.phase=history.phase;out.requests=history.requests;out.tasks=[];out.known_scope_finished=history.coverage.bounded_finished;out.history_renderable=snapshot.dag.nodes.some(n=>Array.isArray(n.parents));out.workflow_complete=content.progress.complete&&history.coverage.bounded_finished&&out.history_renderable;if(!out.history_renderable&&history.coverage.bounded_finished)out.phase='history_unavailable';}
+    return out;
+  }
+  root.GitHubReviewHistory=Object.freeze({request,receipt,decorate,plan,limits});
+  root.GitHubReviewAcquisition=Object.freeze({plan:acquire});
+})(globalThis);
+
+/* Deterministic native SVG DAG. Only observed child->parent SHA edges; no acquisition. */
+((root) => {
+  'use strict';
+  const bad=()=>{throw new Error('Invalid history graph');};
+  const sha=v=>typeof v==='string'&&/^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(v)?v.toLowerCase():bad();
+  const clean=v=>typeof v==='string'?v.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,'').slice(0,240):'';
+  const fit=(value,budget=50)=>{let out='',used=0;for(const ch of clean(value)){const n=ch.codePointAt(0)>255?2:1;if(used+n>budget)return out+'…';out+=ch;used+=n;}return out;};
+  function layout(dag, branches, selectedRef=null){
+    if(!Array.isArray(dag?.nodes)||dag.nodes.length>4000||!Array.isArray(branches)||branches.length>1000)bad();
+    const all=new Map(),refs=new Map();
+    for(const b of branches){if(!root.GitHubReviewCore.validRef(b.name))bad();if(b.tip_sha){const h=sha(b.tip_sha);refs.set(h,[...(refs.get(h)||[]),b.name]);}}
+    for(const labels of refs.values())labels.sort((a,b)=>root.GitHubReviewSurvey.order(a,b));
+    for(const n of dag.nodes){const h=sha(n.sha);if(all.has(h))bad();if(n.parents!==null&&!Array.isArray(n.parents))bad();const parents=n.parents===null?null:n.parents.map(sha);if(parents&&(parents.length>256||new Set(parents).size!==parents.length||parents.includes(h)))bad();if(parents!==null||refs.has(h))all.set(h,{...n,sha:h,parents});}
+    let chosen=all;
+    if(selectedRef!==null){const b=branches.find(b=>b.name===selectedRef);if(!b)bad();const keep=new Set(),q=b.tip_sha?[b.tip_sha]:[];if(Array.isArray(b.history?.commit_shas)){for(const h of b.history.commit_shas)keep.add(h);}else for(let i=0;i<q.length;i++){const h=q[i];if(keep.has(h))continue;keep.add(h);for(const p of all.get(h)?.parents||[])q.push(p);}chosen=new Map([...all].filter(([h])=>keep.has(h)));}
+    const children=new Map([...chosen.keys()].map(h=>[h,0]));for(const n of chosen.values())for(const p of n.parents||[])if(children.has(p))children.set(p,children.get(p)+1);
+    const cmp=(a,b)=>root.GitHubReviewSurvey.order(a,b),ready=[...children].filter(([,n])=>n===0).map(([h])=>h).sort(cmp),ordered=[];
+    while(ready.length){const h=ready.shift();ordered.push(chosen.get(h));for(const p of chosen.get(h).parents||[])if(children.has(p)){children.set(p,children.get(p)-1);if(children.get(p)===0){ready.push(p);ready.sort(cmp);}}}if(ordered.length!==chosen.size)bad();
+    const shown=ordered.slice(0,128),shownSet=new Set(shown.map(n=>n.sha)),positions=new Map(),active=[],boundary=new Map();
+    const boundaryReasons=new Map((dag.outside_window_parents||[]).map(b=>[typeof b==='string'?b:b.sha,typeof b==='string'?'outside_window':b.reason]));
+    const slot=h=>{let n=active.indexOf(h);if(n>=0)return n;n=active.indexOf(null);if(n<0)n=active.length;active[n]=h;return n;};
+    let maxLane=0;
+    for(let i=0;i<shown.length;i++){
+      const n=shown[i],lane=slot(n.sha);maxLane=Math.max(maxLane,lane);positions.set(n.sha,{x:24+lane*28,y:28+i*48,lane,row:i});
+      const parents=n.parents||[];active[lane]=null;
+      parents.forEach((p,j)=>{if(!active.includes(p)){if(j===0&&active[lane]===null)active[lane]=p;else slot(p);}maxLane=Math.max(maxLane,active.indexOf(p));if(!shownSet.has(p))boundary.set(p,boundaryReasons.get(p)||'display_window_limit');});
+    }
+    const applicable=selectedRef===null?branches:branches.filter(b=>b.name===selectedRef);
+    for(const b of applicable)if(b.tip_sha&&!shownSet.has(b.tip_sha))boundary.set(b.tip_sha,boundaryReasons.get(b.tip_sha)||'tip_not_in_window');
+    const boundaries=[...boundary].slice(0,root.GitHubReviewCore.contract.limits.history_boundary_display??24).map(([h,reason],i)=>{const lane=slot(h);maxLane=Math.max(maxLane,lane);const item={sha:h,reason,refs:refs.get(h)||[],x:24+lane*28,y:28+(shown.length+i)*48,lane};positions.set(h,item);return item;});
+    const edges=[];for(const n of shown)for(const p of n.parents||[])if(positions.has(p))edges.push({child:n.sha,parent:p,boundary:!shownSet.has(p)});
+    return {nodes:shown.map(n=>({...n,...positions.get(n.sha),refs:refs.get(n.sha)||[],merge:(n.parents?.length||0)>1})),edges,boundaries,omitted_nodes:ordered.length-shown.length,omitted_boundaries:boundary.size-boundaries.length,width:Math.max(360,(maxLane+1)*28+400),height:Math.max(100,(shown.length+boundaries.length)*48+30),label_x:(maxLane+1)*28+24,selected_ref:selectedRef};
+  }
+  function mount(element,dag,branches,options={}){
+    const doc=element.ownerDocument;let selectedRef=null,selectedCommit=null,current;
+    const svg=(tag,attrs={})=>{const n=doc.createElementNS?doc.createElementNS('http://www.w3.org/2000/svg',tag):doc.createElement(tag);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,String(v));return n;};
+    const text=(p,tag,value)=>{const n=doc.createElement(tag);n.textContent=clean(value);p.appendChild(n);return n;};
+    element.replaceChildren();text(element,'h3','コミット履歴 · 分岐とmerge');
+    const select=text(element,'select','');select.setAttribute('aria-label','履歴で表示する枝');let option=text(select,'option','全枝の観測履歴');option.value='';
+    for(const b of branches){option=text(select,'option',b.name);option.value=b.name;}
+    const status=text(element,'p',''),legend=text(element,'p','上の子 → 下の親。実親SHAだけを接続。点線は親SHA観測済み・親nodeは取得/表示範囲外。laneは配置、refは取得時tip。');legend.setAttribute('class','gwi-muted');
+    const viewport=text(element,'div','');viewport.setAttribute('class','gwi-history-scroll');
+    const groups=new Map();
+    function paint(){
+      current=layout(dag,branches,selectedRef);viewport.replaceChildren();groups.clear();
+      const figure=svg('svg',{viewBox:`0 0 ${current.width} ${current.height}`,width:current.width,height:current.height,role:'img','aria-label':'観測したcommit親子関係とbranch tip'});viewport.appendChild(figure);
+      const points=new Map([...current.nodes,...current.boundaries].map(n=>[n.sha,n]));
+      for(const e of current.edges){const a=points.get(e.child),b=points.get(e.parent),path=svg('path',{d:`M ${a.x} ${a.y} C ${a.x} ${a.y+24}, ${b.x} ${b.y-24}, ${b.x} ${b.y}`,fill:'none',stroke:'var(--accent)','stroke-width':1.5,'data-child':e.child,'data-parent':e.parent});if(e.boundary)path.setAttribute('stroke-dasharray','4 3');figure.appendChild(path);}
+      for(const n of [...current.nodes,...current.boundaries]){
+        const boundary=!!n.reason,g=svg('g',{tabindex:0,role:'button','aria-label':n.sha+' '+(n.subject||n.reason||''),'aria-pressed':String(selectedCommit===n.sha),'data-commit-sha':n.sha});g.dataset.commitSha=n.sha;groups.set(n.sha,g);
+        const title=svg('title');title.textContent=n.sha+' '+clean(n.subject||'')+' parents: '+(Array.isArray(n.parents)?n.parents.length:'unknown')+' · '+n.refs.slice(0,8).map(clean).join(' · ')+(n.refs.length>8?' · 他'+(n.refs.length-8)+' refs':'');g.appendChild(title);
+        g.appendChild(svg('circle',{cx:n.x,cy:n.y,r:n.merge?6:4,fill:boundary?'var(--bg)':'var(--accent)',stroke:'var(--accent)','stroke-width':selectedCommit===n.sha?4:1.5}));
+        const label=svg('text',{x:current.label_x,y:n.y+3,fill:'var(--text)','font-size':12});label.textContent=n.sha.slice(0,10)+' · '+fit(n.subject||('範囲外: '+n.reason),32);g.appendChild(label);
+        const meta=svg('text',{x:current.label_x,y:n.y+18,fill:'var(--muted)','font-size':11});meta.textContent=fit((n.merge?'merge '+n.parents.length+' parents · ':!boundary&&n.parents===null?'親未取得 · ':!boundary&&n.parents?.length===0?'観測root · ':'')+(n.refs.length?'ref: '+n.refs.join(' · '):''));g.appendChild(meta);
+        const choose=()=>{selectedCommit=n.sha;for(const[h,node]of groups)node.setAttribute('aria-pressed',String(h===n.sha));options.onCommit?.(n.sha);};g.addEventListener('click',choose);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault?.();choose();}});figure.appendChild(g);
+      }
+      const c=dag.history_coverage;
+      status.textContent=`表示 ${current.nodes.length} commits / ${current.edges.length} 観測辺 · 境界 ${current.boundaries.length}（他${current.omitted_boundaries}） · 表示上限省略 ${current.omitted_nodes}`+(c?` · 取得 ${c.observed}/${c.limits.max_commits}, 深さ${c.limits.max_depth}, 未取得queue ${c.pending}, 失敗${c.failed} · 単一Git object取得（ページングなし、SHA queue再開）`:' · 既存アダプタの有限履歴')+(current.nodes.some(n=>Array.isArray(n.parents))?'':' · 親付き履歴データがなく、履歴図の取得は未達です。');
+    }
+    select.addEventListener('change',()=>{selectedRef=select.value||null;selectedCommit=null;paint();options.onRef?.(selectedRef);});paint();
+    return Object.freeze({focus:(ref)=>{if(ref!==null&&!branches.some(b=>b.name===ref))bad();selectedRef=ref;select.value=ref||'';selectedCommit=null;paint();},select:(h)=>{h=sha(h);if(!groups.has(h))bad();selectedCommit=h;for(const[k,n]of groups)n.setAttribute('aria-pressed',String(k===h));options.onCommit?.(h);},state:()=>({selectedRef,selectedCommit,layout:current})});
+  }
+  root.GitHubReviewHistoryGraph=Object.freeze({layout,mount});
+})(globalThis);
+
 /* Inline into a native visualization fragment. No network, tool calls or storage. */
 ((root) => {
   'use strict';
@@ -579,6 +747,10 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const text = (parent, tag, value) => { const n = doc.createElement(tag); n.textContent = clean(value); parent.appendChild(n); return n; };
     const repository = snapshot.repository.name_with_owner, adapter = snapshot.review_core?.adapter;
     const targets = overview.items.map((b) => ({ kind: 'branch', branch_ref: b.name, sha: b.tip_sha }));
+    const commitShas = new Set(snapshot.dag.nodes.map(n=>n.sha));
+    for(const b of overview.items) if(b.tip_sha) commitShas.add(b.tip_sha);
+    for(const b of snapshot.dag.outside_window_parents||[]) commitShas.add(typeof b==='string'?b:b.sha);
+    for(const sha of [...commitShas].slice(0,512)) if(targets.length < root.GitHubReviewCore.contract.limits.selection_targets) targets.push({kind:'commit',sha});
     const filesOf = (b) => [...(b.content_review?.evidence || []), ...(b.content_review?.delta?.evidence || [])].filter((f, i, a) => a.findIndex((other) => other.id === f.id) === i);
     // File selection is revision/path based in the connector adapter; never invent Work file_id.
     if (adapter === 'chat_github') {
@@ -613,7 +785,20 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const coverage = query('overview-coverage');
     let page = 0, selected = null;
     const pageSize = root.GitHubReviewCore.contract.limits.overview_page_size;
+    const graphElement=element.querySelector('[data-history-graph]');
+    if(!graphElement) throw new Error('Missing history graph template');
+    const graph=root.GitHubReviewHistoryGraph.mount(graphElement,snapshot.dag,overview.items,{onRef:(ref)=>{if(ref)show(overview.items.find(b=>b.name===ref));else{selected=null;details.hidden=true;selection.clear();paint();}},onCommit:showCommit});
+    function showCommit(sha){
+      const target=selection.targets.find(t=>t.kind==='commit'&&t.sha===sha);if(!target)return;
+      details.hidden=false;details.replaceChildren();const node=snapshot.dag.nodes.find(n=>n.sha===sha);
+      text(details,'h3','commit '+sha);text(details,'p',node?.subject||'commit内容は取得範囲外です。');
+      text(details,'p',Array.isArray(node?.parents)?'観測parents: '+(node.parents.join(' · ')||'0（root）'):'親SHAは未取得です。');
+      text(details,'p','ref tip: '+(overview.items.filter(b=>b.tip_sha===sha).map(b=>b.name).join(' · ')||'現在tipのラベルなし'));
+      const link=text(details,'a','GitHubの完全SHA根拠');link.setAttribute('href','https://github.com/'+repository+'/commit/'+sha);link.setAttribute('target','_blank');link.setAttribute('rel','noopener noreferrer');
+      text(details,'p','選択だけではdiffを取得しません。「詳しく聞く」で対象commitの根拠を追加確認します。');selection.select(target.id);
+    }
     function show(b) {
+      graph.focus(b.name);
       selected = b.branch_id; details.hidden = false; details.replaceChildren();
       text(details, 'h3', b.name + ' · ' + (b.tip_sha || 'tip不明'));
       text(details, 'p', summary(b)); text(details, 'p', '他枝との違い: ' + summary(b, 'difference'));
@@ -658,7 +843,7 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     }
     search.addEventListener('input', () => { page = 0; paint(); }); prev.addEventListener('click', () => { page--; paint(); }); next.addEventListener('click', () => { page++; paint(); });
     paint();
-    return Object.freeze({ select: (id) => { const b = overview.items.find((b) => b.branch_id === id); if (!b) throw new Error('Unknown branch'); show(b); }, selection, state: () => ({ page, matched: filtered().length, total: overview.items.length, selected }) });
+    return Object.freeze({ graph, select: (id) => { const b = overview.items.find((b) => b.branch_id === id); if (!b) throw new Error('Unknown branch'); show(b); }, selection, state: () => ({ page, matched: filtered().length, total: overview.items.length, selected }) });
   }
   function buildFragment(template, bundle, model) {
     if (typeof template !== 'string' || !template.includes('/*__REVIEW_BUNDLE__*/') || !template.includes('/*__REVIEW_MODEL__*/') || typeof bundle !== 'string' || /<\/script/i.test(bundle)) throw new Error('Invalid overview template');

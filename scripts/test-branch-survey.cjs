@@ -29,7 +29,7 @@ test('42 branches including default #38 survive acquisition/normalization/displa
   assert.equal(s.branch_overview.items[37].name, 'main'); assert.equal(s.branch_overview.baseline.name, 'main');
   const p = survey.plan(s); assert.equal(p.phase, 'inspect_default_branch_first'); assert.equal(p.requests.length, 1); assert.equal(p.requests[0].args.base, 'main'); assert.equal(p.progress.counts.remaining, 42); assert.equal(p.max_parallel, 4);
   assert.ok(p.requests.every((q) => q.method === 'compare_commits' && q.args.base === q.args.head));
-  assert.equal(s.branch_overview.content_coverage.with_file_evidence, 0); assert.equal(s.dag.per_branch.length, 0);
+  assert.equal(s.branch_overview.content_coverage.with_file_evidence, 0); assert.equal(s.dag.per_branch.length, 42);
 });
 
 test('all fetched names survive more than 100 and the limit is explicit rather than silently clipping', () => {
@@ -77,8 +77,9 @@ class Element {
   async click() { if (!this.disabled) return this.handlers.click?.(); }
 }
 function dom() {
-  const controls = {}; for (const k of ['overview-cards', 'overview-details', 'overview-search', 'overview-prev', 'overview-next', 'overview-page', 'overview-repository', 'overview-baseline', 'overview-coverage', 'review-selection', 'review-ask', 'review-fallback', 'review-status']) controls[k] = new Element();
-  return { controls, element: { ownerDocument: { createElement: (tag) => new Element(tag) }, querySelector: (s) => controls[s.slice(6, -1)], querySelectorAll: () => [] } };
+  const controls = {}; for (const k of ['history-graph', 'overview-cards', 'overview-details', 'overview-search', 'overview-prev', 'overview-next', 'overview-page', 'overview-repository', 'overview-baseline', 'overview-coverage', 'review-selection', 'review-ask', 'review-fallback', 'review-status']) controls[k] = new Element();
+  const doc={createElement:(tag)=>{const e=new Element(tag);e.ownerDocument=doc;return e;}}; for(const c of Object.values(controls))c.ownerDocument=doc;
+  return { controls, element: { ownerDocument: doc, querySelector: (s) => controls[s.slice(6, -1)], querySelectorAll: () => [] } };
 }
 const texts = (p) => [p.textContent, ...p.children.flatMap(texts)].join('\n');
 test('shipped template has concrete controls; 42 branch search/pagination/default/details work without prebuilt panels', async () => {

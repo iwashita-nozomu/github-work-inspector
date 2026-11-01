@@ -8,7 +8,7 @@ GitHub appの応答はGPTへ届く。正規化/表示時の秘密省略はRust�
 ## 標準入力「このレポを見て」の必須処理
 
 短い入力でも、枝名だけの表・PRだけの表・描画なしを完了扱いしない。利用者の「一覧だけ」等は優先する。
-`references/review-selection.js` の共通normalize/Survey.planと、下記の取得順を使う。
+`references/review-selection.js` の共通normalize/Acquisition.planと、下記の取得順を使う。
 JSを実行できない取得turnでは同じ契約をhostが適用し、JS実行済みとは言わない。次のnative fragmentの
 scriptでは実際に正規化と描画を実行する。取得の実行主体は常にhostであり、viewからtoolを呼ばない。
 
@@ -18,7 +18,7 @@ scriptでは実際に正規化と描画を実行する。取得の実行主体�
    ページごとのbranches/cursor/captured_atを残す。取得枝数=正規化枝数=全表示対象数を検査し、表示1頁20件と混同しない。
    既定枝が後ろにあっても消さず、基準欄へ常時表示。範囲外/未取得ならその事実を残す。
 3. 共通核の「全枝を網羅する探索順」に従う。既定枝を先に限定調査・要約してから、残りを固定順で巡回する。
-   Survey.planのrequestsはhostが既存GitHub appで実行し、各応答で再正規化する。
+   Acquisition.planのrequestsはhostが既存GitHub appで実行し、各応答で再正規化する。
    tip_resolutionsは{ref,captured_at,result}、失敗は{ref,captured_at,error:"tip_resolution_failed"}。
    branch_readsはref/sha/captured_at/comparisonまたはcomparison_error/filesを保持する。
    filesはpath/start_line:1/end_line:60/captured_at/contentまたはerror。基準側の代表fileは
@@ -33,7 +33,7 @@ scriptでは実際に正規化と描画を実行する。取得の実行主体�
    request_budgetで止まっても未着手枝を落とさず、checkpointと観測一式を保持する。
 
 PR（search_prs最大20件）とrecent commits（search_commits最大8件）は補助標本。枝ref引数のないrecentは
-全枝の履歴ではない。exact head repo/refでのみPRを関連付ける。parents未提供はnull、DAGの線を作らない。
+全枝の履歴ではない。exact head repo/refでのみPRを関連付ける。search_commits/fetch_commitのparents未提供はnull。履歴用Git data GETで取得したparentsだけをDAGへ採用する。
 
 ## 実装済みテンプレートで表示する（必須の完了条件）
 

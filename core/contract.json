@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -20,7 +20,11 @@
     "content_lines": 60,
     "content_bytes": 8192,
     "overview_page_size": 20,
-    "baseline_counterpart_files": 1
+    "baseline_counterpart_files": 1,
+    "history_commits": 96,
+    "history_depth": 12,
+    "history_per_branch": 32,
+    "history_boundary_display": 24
   },
   "profiles": {
     "rust_gh": {
@@ -34,7 +38,7 @@
     },
     "chat_github": {
       "runtime": "host GPT with the existing GitHub app; optional native JavaScript view",
-      "observed_parent_fields": false,
+      "observed_parent_fields": true,
       "branch_tip_sha_in_list": false,
       "default_branch_metadata": true,
       "commit_file_transfer_bounded": false,

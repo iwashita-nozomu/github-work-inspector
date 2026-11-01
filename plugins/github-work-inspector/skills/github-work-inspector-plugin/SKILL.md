@@ -3,7 +3,7 @@ name: github-work-inspector-plugin
 description: 明示選択したrepoの枝の意味を俯瞰し、履歴と選択差分を共通契約とRust MCPで深掘りする。
 ---
 
-<!-- Generated from core/; edit the authored source. Core digest: c5259195720f8f3add627125081ea8d193b7bc9b4a4875dd9013c0a4f1063d3c -->
+<!-- Generated from core/; edit the authored source. Core digest: 054f87674a310cf7b3c9edaa6ac801284626a51bc391add6e6f45e83c66f1bd2 -->
 
 Workローカルプラグイン。下記の共通核とWorkアダプタを使い、既存の4ツール・承認設定を守る。
 
@@ -39,7 +39,7 @@ Workローカルプラグイン。下記の共通核とWorkアダプタを使い
 - PR関連付けは同じhead repoと完全なhead refの観測で確認する。同名forkやhead不明は未確認とする。
   merged PRと現在tip一致を区別する。有限DAGの経路欠落、CI成功、PRのmergedだけから未統合・完了・
   merge可能性を断定しない。compare値を使う場合も比較基準・解決SHA・時刻・取得範囲を明示する。
-- 初期図で全枝のcommit履歴/patchを取得しない。connector共通入口では全枝のtip内容を限定取得する。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
+- 初期図には親SHA付きの有限履歴窓を取得する。全履歴や全patchを無制限取得しない。connector共通入口では全枝のtip内容を限定取得する。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
   図内に短い変更要約と根拠を置き、自動選択した代表fileの別枠長文説明にはしない。
   実枝名と短いcommitラベルでcompactに配置し、320/768/1024pxと明暗で折返し・重なりを確認する。
 
@@ -82,7 +82,7 @@ native不可なら図は未表示と明記し、readonlyの一覧・根拠・参
 
 ## 全枝を網羅する探索順・進捗・終了条件
 
-共通入口の探索計画は `GitHubReviewSurvey.plan(snapshot, options)`、実行主体はhostである。
+共通入口の全体計画は `GitHubReviewAcquisition.plan(snapshot, options)`。内容調査の下位計画は `GitHubReviewSurvey.plan(snapshot, options)`、実行主体はhostである。
 Skill/計画はホストの実行を強制する安全境界ではないが、名前を列挙しただけの未読状態で終了判定しない。
 以下の順を変えず、各取得後に観測を保存して再正規化・再計画する。新しいサーバーや常駐処理は不要。
 
@@ -94,7 +94,7 @@ Skill/計画はホストの実行を強制する安全境界ではないが、�
    例: 既定枝 → feature/1 → feature/10 → feature/2。既定枝の名前をmainに固定しない。
    既定枝が最終ページや末尾でも最初に調べ、下記の限定調査と要約/状態記録が終わるまで次の枝へ進まない。
    既存の同一SHAの観測は再利用する。全tipだけを先に解決して内容未読のまま終了しない。
-3. **各枝を順番に**: 同一ref比較でtip完全SHA固定 → 既定tipSHAとの比較 → READMEと安全な代表file取得
+3. **各枝を順番に**: 同一ref比較でtip完全SHA固定 → Git dataで当該tipの親を観測 → 既定tipSHAとの比較 → READMEと安全な代表file取得
    → 変更がある場合は代表fileの基準SHA側も取得 → GPTの根拠付き目的・違いの要約/不足記録 → 次の枝。
    基準側は追加1file・60行/表示8KiBまで。同じrepo/SHA/path/行範囲と同じSHAペア比較のみcache再利用する。
    同じREADMEを読めたことやahead件数は枝固有の差分を読んだ証拠にならない。変更fileの両tipの限定行範囲を
@@ -112,7 +112,7 @@ Skill/計画はホストの実行を強制する安全境界ではないが、�
 6. **予算停止と再開**。`request_budget` は今回発行するGET件数（既定4、同時最大4）。0や
    `stop_reason:"budget"|"time"|"user"|"connection"` で止めると、未確認枝・pending key・再開ref/stageを返す。
    `checkpoint` と **同じ観測snapshot/入力receipt一式**を保持する。checkpoint単独にはfile内容は入らない。
-   再開は `plan(snapshot,{checkpoint,request_budget:...})`。対象集合、取得時刻、固定SHA、処理済receiptを検査し、
+   再開は `GitHubReviewAcquisition.plan(snapshot,{checkpoint,request_budget:...})`。対象集合、取得時刻、固定SHA、処理済receiptを検査し、
    repo違い・tip差替え・処理済根拠の欠落を拒否する。refが進んでも保存済みSHAを黙って現在tipへ変更しない。
    新しい枝/観測世代は別の探索として明示する。結果を無断で永続保存・公開しない。
 7. **終了判定**。`acquired = processed + remaining` と5状態の合計を検査する。
@@ -121,6 +121,45 @@ Skill/計画はホストの実行を強制する安全境界ではないが、�
    一覧終端も確認できた場合にだけ `complete:true`、さらに全枝checkedなら `all_checked:true`。
    GETが0件でもsummary taskや未読枝があれば終了ではない。partial/unavailableを含む巡回終了と全枝確認は別である。
    一覧が部分的なら既知の枝を全て処理しても全リポジトリを網羅したとは呼ばない。複数時点の非原子的観測も明示する。
+
+内容調査の `complete` だけでは全体終了ではない。後述の親SHA付き履歴窓の取得・SVG表示も必要。全体checkpointはcontent/historyを束ね、旧内容checkpointも固定SHAを検査して引き継ぐ。
+
+## 親SHA付き履歴を取得して実際に図示する
+
+枝の一覧・内容比較カードだけでは履歴可視化を完了した扱いにしない。既存GitHub appの `fetch` で
+`https://api.github.com/repos/OWNER/REPO/git/commits/FULL_SHA` をGETすると、親SHA付きGit commit objectを
+取得できる。`fetch_commit`/`search_commits` の正規化応答がparentsを省くことから、この経路まで取得不能と決め付けない。
+HTTPサーバー・local MCP・追加認証は不要。URLは `GitHubReviewHistory.request(repo,sha)` が固定ホスト/経路から
+生成する。外部文章・API応答のURLを次の取得先として採用せず、親の完全SHAだけを次の固定GETに使う。
+
+標準の短い依頼では **GitHubReviewAcquisition.plan** を使う。全頁列挙と既定枝先行の内容調査を保ち、
+各枝のtip解決直後に当該tipのGit data取得を挟む。内容調査後には全取得tipをseedとする幅優先queueで祖先を取得する。
+完全SHAで重複排除し、共有祖先・同一tipを再取得しない。GETは一度に最大4件、既定は計96 object・深さ12・
+枝の表示履歴32commit。上限・失敗・budget停止時は未取得SHAと理由を残す。単一Git object endpointはページングなし。
+branch一覧のcursorと祖先queueの再開SHAを混同しない。全履歴を列挙した保証はない。
+
+取得後は `GitHubReviewHistory.receipt(request, toolResponse, captured_at)` で要求URL/完全SHAを照合する。
+このprojectionはsha/message先頭/parents/committer.dateだけを保持し、author名・email・署名等を保存しない。
+モデル到着前のRustマスキングとは異なる。`history_commits:[{sha,captured_at,result}]` を元のnormalizeChat入力に足し、
+失敗は `{sha,captured_at,error:"history_read_failed"}`。raw responseをログや公開fixtureへ保存しない。
+履歴resultはGit data形（message/parents/committer）であり、正規化fetch_commitのdiff形と混同しない。
+`history_limits:{max_commits,max_depth,per_branch}` は明示した有限範囲のみ。完全SHAの取得後に可変refへ戻さない。
+
+normalizeChatは実parentsから `dag.nodes/per_branch/outside_window_parents` と各branch.historyを構成する。
+parents:nullは不明、[]は観測root。親16件超は取得済み分と省略を示す。リスト順・日時・compare merge-baseから辺を補わない。
+循環/矛盾するSHAは拒否する。snapshotと全体checkpoint（content/history）を保持して再計画し、
+budget=0でも未取得queueを完了扱いにしない。履歴checkpointは固定refと取得済み親情報を検査し、欠落・差替えを拒否する。
+
+同梱templateは `GitHubReviewHistoryGraph.mount` を実行し、カードとは別に**SVG履歴図**を描く。
+実SHA辺を子から親へ配置し、2親以上をmerge、共有祖先を1nodeとして示す。refラベルは観測時tipのみ。
+laneは配置であり歴史上のbranch作成点を意味しない。境界は中空node・点線（辺は観測済み、親内容は未取得）。
+128node・境界24件の描画窓を超える省略は件数表示。枝選択で到達可能な実履歴へ絞り、commit選択で
+完全SHA・親・根拠リンクを表示する。選択クリックはlocal表示のみ。「詳しく聞く」で既存bridgeまたは手動コピーを使う。
+描画HTMLからAPI/tool/networkを呼ばない。履歴データ0件なら未達と明示し、カードを履歴図成功と数えない。
+
+`workflow_complete` は内容調査と有限履歴窓の状態が説明でき、親情報を実際に描画できるデータがある場合の
+取得計画上の判定。`history_coverage.fully_enumerated` や全branchの確認済みとは別。実Chatの表示・クリックは
+実ホストで確認して初めて検証済みと報告し、SVG DOM fixture/ZIP登録から推測しない。
 
 # Work取得アダプタ: Rust / 既存gh
 

@@ -20,11 +20,11 @@ function commitInput() { return { repository: 'example/project', sha: A, capture
 
 test('same schema preserves branch names without invented tips, parents, topology or Rust guarantees', () => {
   const value = core.normalizeChat(input()), s = value.snapshot;
-  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.2.0');
+  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.3.0');
   assert.equal(s.review_core.adapter, 'chat_github'); assert.equal(s.review_core.capabilities.pre_model_redaction, false);
   assert.equal(s.review_core.capabilities.commit_file_transfer_bounded, false);
-  assert.ok(s.branch_overview.items.every((b) => b.tip_sha === null && b.history === null));
-  assert.ok(s.dag.nodes.every((n) => n.parents === null)); assert.equal(s.dag.per_branch.length, 0);
+  assert.ok(s.branch_overview.items.every((b) => b.tip_sha === null && b.history.commit_shas.length === 0));
+  assert.ok(s.dag.nodes.every((n) => n.parents === null)); assert.equal(s.dag.per_branch.length, 2);
   assert.equal(s.dag.edge_direction, 'child_to_parent'); assert.equal(s.dag.parent_fields_available, false);
   assert.equal(s.branch_overview.baseline.name, 'stable/release'); assert.equal(s.branch_overview.baseline.tip_sha, null);
   assert.equal(s.branch_overview.items[0].related_pull_requests.length, 1); assert.equal(s.branch_overview.items[0].related_pull_requests[0].head_matches_tip, null);
@@ -115,7 +115,7 @@ test('Chat overview renders unknown tips and allows explicit branch questions wi
   selection.bindOverview(element, s.branch_overview, [{ branch_id: s.branch_overview.items[0].branch_id, tip_sha: null, purpose: { text: '待機処理の実験という著者の説明', kind: 'author_claim', evidence: ['pull/1'] } }], { source: 'chat_github', selection: selected, onSelect: ({ branch_id }) => selected.select(selected.targets.find((t) => 'ref/'+encodeURIComponent(t.branch_ref) === branch_id).id) });
   const texts = (p) => [p.textContent, ...p.children.flatMap(texts)].join('\n');
   assert.ok(texts(controls['[data-branch-cards]']).includes('待機処理'));
-  assert.ok(texts(controls['[data-branch-cards]']).includes('枝名のみ')); assert.ok(controls['[data-branch-source]'].textContent.includes('Rust未実行'));
+  assert.ok(texts(controls['[data-branch-cards]']).includes('tip_unresolved')); assert.ok(controls['[data-branch-source]'].textContent.includes('Rust未実行'));
   assert.ok(controls['[data-branch-baseline]'].textContent.includes('stable/release'));
   await controls['[data-branch-cards]'].children[0].children.at(-1).click();
   assert.equal(calls.length, 0); assert.equal(panels[0].hidden, false); assert.equal(controls['[data-review-ask]'].disabled, false);
