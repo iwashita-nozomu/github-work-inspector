@@ -1,4 +1,4 @@
-<!-- Generated from core/; edit the authored source. Core digest: 054f87674a310cf7b3c9edaa6ac801284626a51bc391add6e6f45e83c66f1bd2 -->
+<!-- Generated from core/; edit the authored source. Core digest: 0c50ffabcc5eae56b0a70fb5c3456462304dc5a1156b9533c53715141bb4be09 -->
 # 共通核: ブランチ俯瞰 → 枝の履歴 → 選択後の詳細
 
 このSkillを明示選択して「このレポを見て」と頼まれたら、各枝の目的・違い・観測状態を選択前に

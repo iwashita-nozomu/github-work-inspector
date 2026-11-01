@@ -52,13 +52,13 @@
     if(!graphElement) throw new Error('Missing history graph template');
     const graph=root.GitHubReviewHistoryGraph.mount(graphElement,snapshot.dag,overview.items,{onRef:(ref)=>{if(ref)show(overview.items.find(b=>b.name===ref));else{selected=null;details.hidden=true;selection.clear();paint();}},onCommit:showCommit});
     function showCommit(sha){
-      const target=selection.targets.find(t=>t.kind==='commit'&&t.sha===sha);if(!target)return;
+      const target=selection.targets.find(t=>t.kind==='commit'&&t.sha===sha);
       details.hidden=false;details.replaceChildren();const node=snapshot.dag.nodes.find(n=>n.sha===sha);
       text(details,'h3','commit '+sha);text(details,'p',node?.subject||'commit内容は取得範囲外です。');
       text(details,'p',Array.isArray(node?.parents)?'観測parents: '+(node.parents.join(' · ')||'0（root）'):'親SHAは未取得です。');
       text(details,'p','ref tip: '+(overview.items.filter(b=>b.tip_sha===sha).map(b=>b.name).join(' · ')||'現在tipのラベルなし'));
       const link=text(details,'a','GitHubの完全SHA根拠');link.setAttribute('href','https://github.com/'+repository+'/commit/'+sha);link.setAttribute('target','_blank');link.setAttribute('rel','noopener noreferrer');
-      text(details,'p','選択だけではdiffを取得しません。「詳しく聞く」で対象commitの根拠を追加確認します。');selection.select(target.id);
+      text(details,'p','選択だけではdiffを取得しません。「詳しく聞く」で対象commitの根拠を追加確認します。');if(target)selection.select(target.id);else{selection.clear();text(details,'p','選択参照の上限に達したため、このcommitの質問送信は無効です。上記の完全SHAを手動で指定してください。');}
     }
     function show(b) {
       graph.focus(b.name);
