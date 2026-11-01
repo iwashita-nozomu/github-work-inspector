@@ -37,17 +37,23 @@
       cursors.add(page.cursor);
       // A non-null cursor alone, even with an empty page, does not prove exhaustion.
     }
-    const retained = Array.from(names).slice(0, contract.limits.branch_cards);
+    const retained = Array.from(names);
+    if (retained.length > contract.limits.branch_cards) fail(); // Never silently drop a fetched branch.
     if (defaultBranch && names.has(defaultBranch) && !retained.includes(defaultBranch)) retained[retained.length - 1] = defaultBranch;
     const complete = ended && names.size <= contract.limits.branch_cards && !branchError;
-    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
+    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
     const tips = new Map();
     const resolutions = input.tip_resolutions || [];
     if (!Array.isArray(resolutions) || resolutions.length > contract.limits.tip_resolutions) fail();
+    const resolvedRefs = new Set();
     for (const observation of resolutions) {
       const ref = observation.ref, r = observation.result;
-      if (!validRef(ref) || (!names.has(ref) && ref !== defaultBranch) || !r || !sameRepo(r.repository_full_name, repository)) fail();
+      if (!validRef(ref) || (!names.has(ref) && ref !== defaultBranch) || resolvedRefs.has(ref)) fail();
+      resolvedRefs.add(ref);
+      if (observation.error) { time(observation.captured_at); continue; }
+      if (!r || !sameRepo(r.repository_full_name, repository)) fail();
       if (r.base !== ref || r.head !== ref || r.status !== 'identical' || r.total_commits !== 0 || !Array.isArray(r.files) || r.files.length !== 0) fail();
+      if (tips.has(ref)) fail();
       tips.set(ref, { sha: sha(r.base_commit?.sha), captured_at: time(observation.captured_at) });
     }
     const rawCommits = input.recent_commits || [];
@@ -65,7 +71,10 @@
     const pullCoverage = { requested_limit: 20, pages_fetched: null, items_seen: pulls.length, fully_enumerated: false, has_more: null, stopped_reason: 'connector_search_sample_no_cursor' };
     const branches = retained.map((name) => ({ name, branch_id: id(name), sha: tips.get(name)?.sha ?? null, protected: null }));
     const items = branches.map((b) => ({ name: b.name, branch_id: b.branch_id, tip_sha: b.sha, tip_commit: nodes.find((c) => c.sha === b.sha) || null, history: null, comparison: { relation: b.name === defaultBranch && b.sha ? 'same_tip' : 'unavailable_parent_fields', child_to_parent_evidence_path: null, unmerged_changes: 'not_determined', ahead_behind: 'not_queried' }, related_pull_requests: pulls.filter((p) => p.head_repository === repository && p.head_branch === b.name).map((p) => ({ pull: p, association: 'same_repository_and_exact_head_ref', head_matches_tip: b.sha === null || p.head_sha === null ? null : b.sha === p.head_sha })) }));
-    return { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
+    const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
+    root.GitHubReviewSurvey.decorate(output.snapshot, input);
+    output.snapshot.partial ||= !output.snapshot.branch_overview.content_coverage.complete;
+    return output;
   }
   function normalizeChatCommit(input) {
     const repository = repo(input.repository), reference = sha(input.sha), captured = time(input.captured_at);

@@ -1,6 +1,6 @@
-/* Generated from core/; consistency digest: 8cae0ef21cfd01e11b6b1c07ce5e152d4cb53692dad01469a9caa6b483478cf3 */
+/* Generated from core/; consistency digest: 44f3335aec04382d513becd97ba6a2dff180b669ae02a536f36debeb6d73606f */
 globalThis.GitHubReviewCoreContract = Object.freeze({
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -9,14 +9,18 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     "chat_file": "repository + full SHA + exact repository path; never an invented file_id"
   },
   "limits": {
-    "branch_cards": 100,
-    "branch_pages": 2,
+    "branch_cards": 1000,
+    "branch_pages": 10,
     "recent_commits": 8,
-    "tip_resolutions": 2,
+    "tip_resolutions": 1000,
     "selected_files": 1,
     "display_patch_lines": 120,
     "display_patch_bytes": 16384,
-    "selection_targets": 200
+    "selection_targets": 2000,
+    "content_files": 2,
+    "content_lines": 60,
+    "content_bytes": 8192,
+    "overview_page_size": 20
   },
   "profiles": {
     "rust_gh": {
@@ -92,17 +96,23 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
       cursors.add(page.cursor);
       // A non-null cursor alone, even with an empty page, does not prove exhaustion.
     }
-    const retained = Array.from(names).slice(0, contract.limits.branch_cards);
+    const retained = Array.from(names);
+    if (retained.length > contract.limits.branch_cards) fail(); // Never silently drop a fetched branch.
     if (defaultBranch && names.has(defaultBranch) && !retained.includes(defaultBranch)) retained[retained.length - 1] = defaultBranch;
     const complete = ended && names.size <= contract.limits.branch_cards && !branchError;
-    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
+    const coverage = { requested_limit: contract.limits.branch_cards, max_pages: contract.limits.branch_pages, pages_fetched: pages, items_seen: names.size, items_skipped: 0, normalized_count: retained.length, display_target_count: retained.length, has_more: branchError ? null : !complete, fully_enumerated: complete, stopped_reason: branchError ? 'error' : complete ? 'end' : repeated ? 'repeated_cursor' : 'limit' };
     const tips = new Map();
     const resolutions = input.tip_resolutions || [];
     if (!Array.isArray(resolutions) || resolutions.length > contract.limits.tip_resolutions) fail();
+    const resolvedRefs = new Set();
     for (const observation of resolutions) {
       const ref = observation.ref, r = observation.result;
-      if (!validRef(ref) || (!names.has(ref) && ref !== defaultBranch) || !r || !sameRepo(r.repository_full_name, repository)) fail();
+      if (!validRef(ref) || (!names.has(ref) && ref !== defaultBranch) || resolvedRefs.has(ref)) fail();
+      resolvedRefs.add(ref);
+      if (observation.error) { time(observation.captured_at); continue; }
+      if (!r || !sameRepo(r.repository_full_name, repository)) fail();
       if (r.base !== ref || r.head !== ref || r.status !== 'identical' || r.total_commits !== 0 || !Array.isArray(r.files) || r.files.length !== 0) fail();
+      if (tips.has(ref)) fail();
       tips.set(ref, { sha: sha(r.base_commit?.sha), captured_at: time(observation.captured_at) });
     }
     const rawCommits = input.recent_commits || [];
@@ -120,7 +130,10 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     const pullCoverage = { requested_limit: 20, pages_fetched: null, items_seen: pulls.length, fully_enumerated: false, has_more: null, stopped_reason: 'connector_search_sample_no_cursor' };
     const branches = retained.map((name) => ({ name, branch_id: id(name), sha: tips.get(name)?.sha ?? null, protected: null }));
     const items = branches.map((b) => ({ name: b.name, branch_id: b.branch_id, tip_sha: b.sha, tip_commit: nodes.find((c) => c.sha === b.sha) || null, history: null, comparison: { relation: b.name === defaultBranch && b.sha ? 'same_tip' : 'unavailable_parent_fields', child_to_parent_evidence_path: null, unmerged_changes: 'not_determined', ahead_behind: 'not_queried' }, related_pull_requests: pulls.filter((p) => p.head_repository === repository && p.head_branch === b.name).map((p) => ({ pull: p, association: 'same_repository_and_exact_head_ref', head_matches_tip: b.sha === null || p.head_sha === null ? null : b.sha === p.head_sha })) }));
-    return { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
+    const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
+    root.GitHubReviewSurvey.decorate(output.snapshot, input);
+    output.snapshot.partial ||= !output.snapshot.branch_overview.content_coverage.complete;
+    return output;
   }
   function normalizeChatCommit(input) {
     const repository = repo(input.repository), reference = sha(input.sha), captured = time(input.captured_at);
@@ -152,6 +165,91 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     return { schema_version: 1, captured_at: captured, ok: true, commit_details: { review_core: core(), repository, mode: chosen ? 'patch' : 'files', commit: { sha: reference, url: `https://github.com/${repository}/commit/${reference}`, subject: clean(typeof c.message === 'string' ? c.message.split('\n')[0] : ''), parents: null, comparison: { kind: 'connector_commit_parent_unspecified', parent_sha: null, per_parent_comparison_performed: false } }, files, patch, coverage: { fully_enumerated: false, has_more: null, stopped_reason: 'connector_provider_not_bounded', provider_file_only_transfer: false }, source_transfer: 'Raw whole-commit payload may already have reached the host; filtering here limits display only.', inferences: [] } };
   }
   root.GitHubReviewCore = Object.freeze({ contract, normalizeChat, normalizeChatCommit, validPath, validRef });
+})(globalThis);
+
+/* Bounded, deterministic survey planning/receipt validation. Host executes only returned reads. */
+((root) => {
+  'use strict';
+  const C = root.GitHubReviewCore, L = C.contract.limits;
+  const invalid = () => { throw new Error('Invalid branch survey'); };
+  const full = (v) => typeof v === 'string' && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(v);
+  const safePath = (p) => C.validPath(p) && !/(?:^|\/)(?:\.[^/]+|data|vendor|third-party|node_modules|target|secrets?|credentials?)(?:\/|$)|(?:secret|credential|password|token)|\.(?:key|pem|p12|pfx|onnx|csv|nc|zip|gz)$/i.test(p) && /(?:\.(?:md|rst|txt|toml|json|ya?ml|py|rs|cpp|cc|c|hpp|h|cmake)|(?:^|\/)CMakeLists\.txt)$/i.test(p);
+  const clean = (s) => typeof s === 'string' ? s.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '') : '';
+  function key(repository, sha, path, start = 1, end = L.content_lines) {
+    if (!full(sha) || !safePath(path) || start !== 1 || end !== L.content_lines) invalid();
+    return repository + '@' + sha.toLowerCase() + '/' + path + '#L' + start + '-L' + end;
+  }
+  // A comparison supplies candidate paths, never a parent edge or executable instruction.
+  function paths(comparison) {
+    const files = Array.isArray(comparison?.files) ? comparison.files : [];
+    const candidates = files.filter((f) => f.status !== 'removed' && safePath(f.filename) && !/^readme(?:\.|$)/i.test(f.filename));
+    candidates.sort((a, b) => {
+      const rank = (p) => /\.(?:rs|py|cpp|hpp|c|h|cc)$/i.test(p) ? 0 : /(?:config|CMakeLists|\.toml|\.cmake|\.ya?ml|\.json)/i.test(p) ? 1 : 2;
+      return rank(a.filename) - rank(b.filename) || a.filename.localeCompare(b.filename);
+    });
+    return ['README.md', candidates[0]?.filename || 'CMakeLists.txt'];
+  }
+  function decorate(snapshot, input) {
+    const repository = snapshot.repository.name_with_owner, base = snapshot.branch_overview.baseline.tip_sha;
+    const reads = input.branch_reads || [], byRef = new Map(), cache = new Map();
+    if (!Array.isArray(reads) || reads.length > L.branch_cards) invalid();
+    for (const r of reads) {
+      if (!C.validRef(r.ref) || byRef.has(r.ref) || !snapshot.branches.items.some((b) => b.name === r.ref && b.sha === r.sha) || !full(r.sha)) invalid();
+      if (!Array.isArray(r.files) || r.files.length > L.content_files || typeof r.captured_at !== 'string' || !Number.isFinite(Date.parse(r.captured_at))) invalid();
+      byRef.set(r.ref, r);
+      for (const f of r.files) {
+        const k = key(repository, r.sha, f.path, f.start_line, f.end_line);
+        if (typeof f.captured_at !== 'string' || !Number.isFinite(Date.parse(f.captured_at))) invalid();
+        if (f.error) { cache.set(k, { id: k, path: f.path, sha: r.sha, captured_at: f.captured_at, state: 'unavailable', reason: 'file_read_failed', excerpt: null }); continue; }
+        if (typeof f.content !== 'string' || f.content.length > 128 * 1024) invalid();
+        const sensitive = /\b(?:gh[pousr]_|github_pat_|password\s*[=:]|api_key\s*[=:])/i.test(f.content) || f.content.includes('PRIVATE KEY');
+        let excerpt = sensitive ? null : clean(f.content).split('\n').slice(0, L.content_lines).join('\n');
+        if (excerpt !== null) { let n = 0, out = ''; for (const ch of excerpt) { n += new TextEncoder().encode(ch).length; if (n > L.content_bytes) break; out += ch; } excerpt = out; }
+        const receipt = { id: k, path: f.path, sha: r.sha.toLowerCase(), start_line: 1, requested_end_line: L.content_lines, captured_at: f.captured_at, state: sensitive ? 'omitted_sensitive' : excerpt.trim() ? 'read' : 'empty', reason: sensitive ? 'sensitive_display_content' : null, excerpt, truncated: !sensitive && excerpt !== f.content, url: 'https://github.com/' + repository + '/blob/' + r.sha.toLowerCase() + '/' + f.path.split('/').map(encodeURIComponent).join('/') + '#L1-L' + L.content_lines, pre_model_redaction: false };
+        const previous = cache.get(k);
+        if (previous?.state === 'read' && receipt.state === 'read' && previous.excerpt !== receipt.excerpt) invalid();
+        cache.set(k, receipt);
+      }
+    }
+    let readCount = 0, attempted = 0, unresolved = 0;
+    for (const item of snapshot.branch_overview.items) {
+      const r = byRef.get(item.name), cmp = r?.comparison;
+      if (!item.tip_sha) unresolved++;
+      let comparison = null;
+      if (cmp) {
+        if (!base || cmp.base !== base || cmp.head !== item.tip_sha || cmp.repository_full_name?.toLowerCase() !== repository || !['identical', 'ahead', 'behind', 'diverged'].includes(cmp.status) || !Array.isArray(cmp.files) || cmp.files.length > 3000 || !Number.isInteger(cmp.ahead_by) || !Number.isInteger(cmp.behind_by) || cmp.ahead_by < 0 || cmp.behind_by < 0) invalid();
+        comparison = { base_sha: base, head_sha: item.tip_sha, status: cmp.status, ahead_by: cmp.ahead_by, behind_by: cmp.behind_by, files_observed: cmp.files.length, files_complete: false, captured_at: r.captured_at, source: 'connector_compare_full_shas', parent_edges: false };
+      }
+      const expected = paths(cmp), evidence = item.tip_sha ? expected.map((p) => cache.get(key(repository, item.tip_sha, p))).filter(Boolean) : [];
+      const successful = evidence.filter((f) => f.state === 'read');
+      if (r || evidence.length) attempted++;
+      if (successful.length) readCount++;
+      item.content_review = { tip_error: (input.tip_resolutions || []).some((t) => t.ref === item.name && t.error) ? 'tip_resolution_failed' : null, state: !item.tip_sha ? 'unresolved' : successful.length === L.content_files && comparison ? 'inspected' : successful.length ? 'partial' : evidence.length || r ? 'unavailable' : 'unread', evidence, comparison, comparison_error: r?.comparison_error ? 'comparison_unavailable' : null, expected_paths: expected, scope: 'bounded_readme_and_one_representative_file_not_full_branch_audit', reused_revision: !r && evidence.length > 0, missing_reason: !item.tip_sha ? 'tip_not_resolved' : successful.length < L.content_files ? 'missing_or_unread_content' : !comparison ? 'comparison_not_observed' : null };
+      if (comparison) item.comparison = { ...item.comparison, observed_compare: comparison, ahead_behind: 'observed_full_sha_comparison', unmerged_changes: comparison.ahead_by > 0 ? 'ahead_commits_observed_not_completion' : 'no_ahead_commits_at_observed_tips' };
+    }
+    snapshot.branch_overview.content_coverage = { target_branches: snapshot.branch_overview.items.length, attempted, with_file_evidence: readCount, inspected: snapshot.branch_overview.items.filter((b) => b.content_review.state === 'inspected').length, unresolved, unique_file_reads: cache.size, complete: snapshot.branch_overview.items.every((b) => b.content_review.state === 'inspected'), scope: 'bounded_content_evidence_only', pre_model_redaction: false };
+    return snapshot;
+  }
+  function plan(snapshot) {
+    const repository = snapshot.repository.name_with_owner, baseline = snapshot.branch_overview.baseline.tip_sha;
+    const requests = [], seen = new Set();
+    const add = (key, method, args) => { if (!seen.has(key)) { seen.add(key); requests.push({ key, method, args }); } };
+    for (const b of snapshot.branch_overview.items) if (!b.tip_sha && !b.content_review?.tip_error) add('tip/' + b.branch_id, 'compare_commits', { repo_full_name: repository, base: b.name, head: b.name });
+    if (requests.length) return { phase: 'resolve_all_tips', requests, max_parallel: 4 };
+    for (const b of snapshot.branch_overview.items) {
+      if (!b.tip_sha) continue;
+      if (baseline && !b.content_review?.comparison && !b.content_review?.comparison_error) add('compare/' + baseline + '/' + b.tip_sha, 'compare_commits', { repo_full_name: repository, base: baseline, head: b.tip_sha });
+      // Wait for comparisons before choosing representative paths. Same-SHA content reads deduplicate.
+      if (!b.tip_sha || (baseline && !b.content_review?.comparison && !b.content_review?.comparison_error)) continue;
+      const evidence = b.content_review?.evidence || [];
+      for (const path of b.content_review.expected_paths) if (!evidence.some((f) => f.path === path)) {
+        const k = key(repository, b.tip_sha, path);
+        add(k, 'fetch_file', { repository_full_name: repository, ref: b.tip_sha, path, start_line: 1, end_line: L.content_lines });
+      }
+    }
+    return { phase: requests.length ? 'inspect_all_branch_contents' : 'finished_or_explicit_failures', requests, max_parallel: 4 };
+  }
+  root.GitHubReviewSurvey = Object.freeze({ decorate, plan, paths, safePath, key });
 })(globalThis);
 
 /* Inline into a native visualization fragment. No network, tool calls or storage. */
@@ -347,4 +445,100 @@ globalThis.GitHubReviewCoreContract = Object.freeze({
     return Object.freeze({ select, selected: () => selected });
   }
   root.GitHubReviewSelection = Object.freeze({ create, bind, bindOverview });
+})(globalThis);
+
+/* Concrete offline view. No fetch, storage, tool calls or implicit follow-up. */
+((root) => {
+  'use strict';
+  function mount(element, model, getHost) {
+    const snapshot = model.snapshot, overview = snapshot?.branch_overview;
+    if (!overview || !Array.isArray(overview.items) || overview.items.length > root.GitHubReviewCore.contract.limits.branch_cards) throw new Error('Invalid overview model');
+    const doc = element.ownerDocument, query = (name) => { const e = element.querySelector('[data-' + name + ']'); if (!e) throw new Error('Incomplete overview template'); return e; };
+    const cards = query('overview-cards'), details = query('overview-details'), search = query('overview-search'), prev = query('overview-prev'), next = query('overview-next'), pageLabel = query('overview-page');
+    const clean = (s) => typeof s === 'string' ? s.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, 8192) : '';
+    const text = (parent, tag, value) => { const n = doc.createElement(tag); n.textContent = clean(value); parent.appendChild(n); return n; };
+    const repository = snapshot.repository.name_with_owner, adapter = snapshot.review_core?.adapter;
+    const targets = overview.items.map((b) => ({ kind: 'branch', branch_ref: b.name, sha: b.tip_sha }));
+    // File selection is revision/path based in the connector adapter; never invent Work file_id.
+    if (adapter === 'chat_github') {
+      const seen = new Set();
+      for (const b of overview.items) for (const f of b.content_review?.evidence || []) if (f.state === 'read') {
+        const key = f.sha + '/' + f.path;
+        if (!seen.has(key)) { seen.add(key); if (targets.length < root.GitHubReviewCore.contract.limits.selection_targets) targets.push({ kind: 'file', sha: f.sha, path: f.path }); }
+      }
+    }
+    const selection = root.GitHubReviewSelection.bind(element, { repository, captured_at: model.captured_at, source_adapter: adapter, targets }, getHost);
+    const summaries = Array.isArray(model.summaries) ? model.summaries : [];
+    if (summaries.length > root.GitHubReviewCore.contract.limits.branch_cards) throw new Error('Too many summaries');
+    for (const b of overview.items) {
+      const files = b.content_review?.evidence || [];
+      if (!Array.isArray(files) || files.length > 2) throw new Error('Invalid content evidence');
+      for (const f of files) if (f.sha !== b.tip_sha || !root.GitHubReviewSurvey.safePath(f.path) || !['read', 'empty', 'unavailable', 'omitted_sensitive'].includes(f.state) || f.id !== root.GitHubReviewSurvey.key(repository, f.sha, f.path) || (f.state === 'read' && (typeof f.excerpt !== 'string' || f.excerpt.length > 8192 || f.requested_end_line !== 60))) throw new Error('Invalid content evidence');
+    }
+
+    function summary(b, field = 'purpose') {
+      const s = summaries.find((s) => s.branch_id === b.branch_id && s.tip_sha === b.tip_sha)?.[field];
+      const evidence = new Set((b.content_review?.evidence || []).filter((f) => f.state === 'read').map((f) => f.id));
+      if (s && ['inference', 'author_claim'].includes(s.kind) && typeof s.text === 'string' && s.text.length <= 480 && Array.isArray(s.evidence) && s.evidence.length && s.evidence.every((id) => evidence.has(id))) return clean(s.text) + (s.kind === 'inference' ? ' [GPT推定]' : ' [著者の説明]');
+      if (field === 'difference') return '内容の違いは未確認（行数・枝名だけで意味を断定しません）';
+      const file = (b.content_review?.evidence || []).find((f) => f.state === 'read');
+      return file ? '内容取得済み・意味要約未生成。' + file.path + ': ' + clean(file.excerpt).split('\n').filter((s) => s.trim() && !s.startsWith('<!--')).slice(0, 2).join(' ').slice(0, 160) : '内容未確認（' + (b.content_review?.state || 'unread') + '）。枝名から目的を推測しません。';
+    }
+    const base = overview.baseline || {};
+    query('overview-repository').textContent = repository + ' · ' + adapter + ' · 取得 ' + clean(model.captured_at);
+    query('overview-baseline').textContent = '常時表示する既定基準: ' + (base.name || '不明') + ' · ' + (base.tip_sha || 'tip未取得');
+    const bc = overview.branch_coverage || {}, cc = overview.content_coverage || {};
+    const coverage = query('overview-coverage');
+    let page = 0, selected = null;
+    const pageSize = root.GitHubReviewCore.contract.limits.overview_page_size;
+    function show(b) {
+      selected = b.branch_id; details.hidden = false; details.replaceChildren();
+      text(details, 'h3', b.name + ' · ' + (b.tip_sha || 'tip不明'));
+      text(details, 'p', summary(b)); text(details, 'p', '他枝との違い: ' + summary(b, 'difference'));
+      const review = b.content_review;
+      text(details, 'p', '内容状態: ' + (review?.state || 'unread') + ' · READMEと代表1ファイルの限定読取り。全内容を監査した意味ではありません。');
+      const cmp = review?.comparison;
+      text(details, 'p', cmp ? '比較: ' + cmp.status + ' · ahead ' + cmp.ahead_by + ' / behind ' + cmp.behind_by + ' · 基準 ' + cmp.base_sha + ' → ' + cmp.head_sha + ' · 差分ファイル一覧の完全性は未保証' : '基準との比較未取得・取得不能');
+      text(details, 'p', b.history ? '観測履歴: ' + (b.history.commit_shas || []).join(' · ') : '枝の履歴・親SHAは未取得。以下のfileはtipの内容でありcommit差分ではありません。');
+      for (const f of review?.evidence || []) {
+        const section = text(details, 'section', ''); text(section, 'h3', f.path + ' · ' + f.state);
+        if (f.state !== 'read') { text(section, 'p', f.reason || '取得不能'); continue; }
+        const link = text(section, 'a', f.sha + ' · L1–' + f.requested_end_line);
+        // Derive links from validated selection data; never trust a supplied external URL.
+        link.setAttribute('href', 'https://github.com/' + repository + '/blob/' + f.sha + '/' + f.path.split('/').map(encodeURIComponent).join('/') + '#L1-L' + f.requested_end_line); link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer');
+        text(section, 'pre', f.excerpt); text(section, 'p', '表示は短い抜粋。詳しい内容・実差分は参照付き質問で確認。');
+        const target = selection.targets.find((t) => t.kind === 'file' && t.sha === f.sha && t.path === f.path);
+        if (target) { const button = text(section, 'button', 'このファイルを選択'); button.type = 'button'; button.addEventListener('click', () => selection.select(target.id)); }
+      }
+      const target = selection.targets.find((t) => t.kind === 'branch' && t.branch_ref === b.name);
+      selection.select(target.id);
+      paint();
+    }
+    function filtered() { const term = clean(search.value || '').toLowerCase(); return overview.items.filter((b) => [b.name, summary(b), ...(b.content_review?.evidence || []).map((f) => f.path)].join('\n').toLowerCase().includes(term)); }
+    function paint() {
+      const items = filtered(); page = Math.max(0, Math.min(page, Math.ceil(items.length / pageSize) - 1));
+      const visible = items.slice(page * pageSize, (page + 1) * pageSize);
+      cards.replaceChildren();
+      for (const b of visible) {
+        const card = text(cards, 'article', ''); card.dataset.branchId = b.branch_id; card.dataset.default = String(b.name === base.name);
+        text(card, 'h3', (b.name === base.name ? '● 既定枝 · ' : '● ') + b.name);
+        text(card, 'p', summary(b)); text(card, 'p', '他枝との違い: ' + summary(b, 'difference')); text(card, 'p', '内容: ' + (b.content_review?.state || 'unread') + ' · tip ' + (b.tip_sha?.slice(0, 12) || '未取得'));
+        const cmp = b.content_review?.comparison;
+        text(card, 'p', cmp ? '基準比較: ' + cmp.status + ' / +' + cmp.ahead_by + ' −' + cmp.behind_by : '基準比較: 未確認');
+        const button = text(card, 'button', '内容・根拠を選択'); button.type = 'button'; button.setAttribute('aria-pressed', String(selected === b.branch_id)); button.addEventListener('click', () => show(b));
+      }
+      prev.disabled = page === 0; next.disabled = (page + 1) * pageSize >= items.length;
+      pageLabel.textContent = 'ページ ' + (page + 1) + '/' + Math.max(1, Math.ceil(items.length / pageSize)) + ' · 検索結果 ' + items.length + '枝';
+      coverage.textContent = '一覧取得 ' + (bc.items_seen ?? overview.items.length) + ' / 正規化 ' + overview.items.length + ' / 表示対象 ' + overview.items.length + '枝 · この頁 ' + visible.length + '枝 · 一覧終端 ' + (bc.fully_enumerated ? '確認' : '未確認 (' + bc.stopped_reason + ')') + ' · 内容根拠あり ' + (cc.with_file_evidence ?? 0) + '/' + overview.items.length + ' · 未読・失敗も全件表示。親情報なしからDAGは生成しません。';
+    }
+    search.addEventListener('input', () => { page = 0; paint(); }); prev.addEventListener('click', () => { page--; paint(); }); next.addEventListener('click', () => { page++; paint(); });
+    paint();
+    return Object.freeze({ select: (id) => { const b = overview.items.find((b) => b.branch_id === id); if (!b) throw new Error('Unknown branch'); show(b); }, selection, state: () => ({ page, matched: filtered().length, total: overview.items.length, selected }) });
+  }
+  function buildFragment(template, bundle, model) {
+    if (typeof template !== 'string' || !template.includes('/*__REVIEW_BUNDLE__*/') || !template.includes('/*__REVIEW_MODEL__*/') || typeof bundle !== 'string' || /<\/script/i.test(bundle)) throw new Error('Invalid overview template');
+    const json = JSON.stringify(model, (key, value) => key === 'excerpt' && typeof value === 'string' ? value.slice(0, 480) : value).replace(/[<>&\u2028\u2029]/g, (ch) => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'));
+    return template.replace('/*__REVIEW_MODEL__*/', () => json).replace('/*__REVIEW_BUNDLE__*/', () => bundle);
+  }
+  root.GitHubReviewOverview = Object.freeze({ mount, buildFragment });
 })(globalThis);

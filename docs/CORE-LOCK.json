@@ -1,17 +1,20 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "authored_files": {
-    "core/adapters/chat.md": "ed69b06ee1c0418d2ed371f324a7f8ddb1dbfad1519f6e286430a042fec5527c",
+    "core/adapters/chat.md": "baf98db2209bda5c29114b1ef267e1f865f4b68c086646370aed2e69313bf14c",
     "core/adapters/work.md": "43936b740e61d1ff76180a0a978f4ba1b2e3e01574ccb5b56de96f094ed7c4fa",
-    "core/contract.json": "1c4ef26dc4e079432827e2730fc721245d41ccaf72647f7d0c358db81d72af54",
-    "core/entries/chat.md": "371e2014a263bfacfdc3b215199be77c235aecd80c87cb4a80e351ba4f4b7083",
+    "core/contract.json": "cbdc0e3052e269af9de7db9690fc86a0bbcf666eec5a501d73ff46582a2be396",
+    "core/entries/chat.md": "4e94756b9e8e6bef6c93ba0f8daff85de96a231c8d86a27b43e1d9c0ffbe02a6",
     "core/entries/work-cli.md": "8d0e0df2e5d9e75c6da369a1f7b016aaefacc21860fdfcbe0db8e7f19f53b611",
     "core/entries/work-plugin.md": "7a08b98180ace435aef4fb98d56db9873b3a75f46e181cb493391e7cfea53bc8",
-    "core/normalize.js": "a34598b60e6ea9c88af3f99d98260d6b32928e2295d67f32269b6ff5a29353b0",
-    "core/observation.schema.json": "1432fb93bb3b8d1765bffb254567fd7d52a358fe7d334ce02a504846108ac958",
+    "core/normalize.js": "9c9decd564c11d892ac698e54bb9d0c840125b2fefdabc9a04d8c46c24e728da",
+    "core/observation.schema.json": "1b5b319082cfc5328c55d963e67099c1b126404d375464dbefa9e6fe423ffb46",
+    "core/overview.fragment.html": "b497efeed0a7f69f056959a56ee38fbd76b22a72f192500c1999d061e1a415f3",
+    "core/overview.js": "64a720f1ea99e4a67077fcf29d14b9ddbb79b374de0ece10d5bf596df7af47ee",
     "core/selection.js": "9f9e4a48bc87b784be636baede7b1d47a2d19d25910a46e303973075b5938fd7",
-    "core/workflow.md": "63bd63719e53d40a49f941a115b506e14db985ee229fcf2d90af1cb77380bfcc"
+    "core/survey.js": "820f332109429572e930b4575c57bd5daca1414d47aa5c7bee5992c53f0da759",
+    "core/workflow.md": "b854aae381d86b1554684c2ed36b1acbf6d5d3a953d256cd87080f8bb1eab822"
   },
   "consistency_only_not_signature": true,
-  "core_digest": "8cae0ef21cfd01e11b6b1c07ce5e152d4cb53692dad01469a9caa6b483478cf3"
+  "core_digest": "44f3335aec04382d513becd97ba6a2dff180b669ae02a536f36debeb6d73606f"
 }

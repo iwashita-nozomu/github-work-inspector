@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "github-work-inspector-chat",
-  "version": "0.1.0",
-  "description": "A private Chat companion using the existing GitHub app and the same evidence/review core as the Work plugin.",
+  "version": "0.2.0",
+  "description": "A private shared Chat and Work entry for evidence-backed GitHub branch content review.",
   "author": {
     "name": "iwashita-nozomu"
   },
@@ -18,9 +18,9 @@
     "com.openai": {
       "apps": "./.app.json",
       "interface": {
-        "displayName": "GitHub Inspector · Chat",
-        "shortDescription": "Git repo overview in Chat",
-        "longDescription": "Branch-purpose overview, selected history and evidence drill-down through the existing GitHub app. Shared core with Work; Rust execution and complete parent DAG are not assumed in Chat.",
+        "displayName": "GitHub Inspector",
+        "shortDescription": "Git branches with evidence",
+        "longDescription": "One GitHub-app entry for Chat and Work. Enumerates branches, reads bounded revision-pinned content and renders a searchable, paginated overview with evidence selection. Rust remains a separate optional adapter; native host display must be verified.",
         "developerName": "iwashita-nozomu",
         "category": "Productivity",
         "capabilities": [],

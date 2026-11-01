@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "short_input": "このレポを見て",
+  "products": ["CHAT", "CODEX"],
+  "adapter": "chat_github",
+  "scenario": "42 branches; default_branch main is item 38; cursor terminates on an empty second page",
+  "expected": {
+    "acquired_normalized_display_targets": [42, 42, 42],
+    "visible_pages": [20, 20, 2],
+    "tip_resolution_targets": 42,
+    "content_targets": 42,
+    "content_read_per_branch": "pinned README plus one safe representative; explicit failure/partial otherwise",
+    "cache": "repository + full SHA + path + requested line range",
+    "summary_evidence": "same-tip successfully read file id; GPT interpretation labeled",
+    "selection": "local branch/file panel, explicit follow-up or manual copy",
+    "unknown_parents": "no ancestry edges",
+    "native_display": "must be separately observed, never inferred from registration"
+  },
+  "forbidden_success_claims": ["first 2 branches equal all contents", "8 recent commits prove all branch histories", "text table equals rendered native view", "source tests prove host bridge"]
+}

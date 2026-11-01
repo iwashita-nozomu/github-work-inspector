@@ -20,7 +20,7 @@ function commitInput() { return { repository: 'example/project', sha: A, capture
 
 test('same schema preserves branch names without invented tips, parents, topology or Rust guarantees', () => {
   const value = core.normalizeChat(input()), s = value.snapshot;
-  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.0.0');
+  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.1.0');
   assert.equal(s.review_core.adapter, 'chat_github'); assert.equal(s.review_core.capabilities.pre_model_redaction, false);
   assert.equal(s.review_core.capabilities.commit_file_transfer_bounded, false);
   assert.ok(s.branch_overview.items.every((b) => b.tip_sha === null && b.history === null));
@@ -37,9 +37,9 @@ test('cursor exhaustion, retained card limit and default outside the first histo
   let s = core.normalizeChat(x).snapshot; assert.equal(s.branches.coverage.fully_enumerated, true); assert.equal(s.branch_overview.items.length, 35);
   assert.ok(s.branch_overview.items.some((b) => b.name === 'stable/release'));
   x.branch_pages = [{ branches: Array.from({ length: 100 }, (_, i) => ({ branch: 'candidate/' + i })), cursor: 'a' }, { branches: [{ branch: 'stable/release' }], cursor: null }];
-  s = core.normalizeChat(x).snapshot; assert.equal(s.branch_overview.items.length, 100); assert.ok(s.branch_overview.items.some((b) => b.name === 'stable/release')); assert.equal(s.branches.coverage.has_more, true);
+  s = core.normalizeChat(x).snapshot; assert.equal(s.branch_overview.items.length, 101); assert.ok(s.branch_overview.items.some((b) => b.name === 'stable/release')); assert.equal(s.branches.coverage.has_more, false);
   x.branch_pages[1].cursor = 'a'; assert.equal(core.normalizeChat(x).snapshot.branches.coverage.stopped_reason, 'repeated_cursor');
-  x.branch_pages.push({ branches: [], cursor: null }); assert.throws(() => core.normalizeChat(x), /Invalid review observation/);
+  x.branch_pages.push({ branches: [], cursor: null }); assert.equal(core.normalizeChat(x).snapshot.branches.coverage.stopped_reason, 'repeated_cursor');
 });
 
 test('a named main is not default metadata and foreign repo or short SHA data is rejected', () => {

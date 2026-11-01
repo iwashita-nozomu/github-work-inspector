@@ -69,7 +69,7 @@
           "properties": {
             "items": {
               "type": "array",
-              "maxItems": 100,
+              "maxItems": 1000,
               "items": {
                 "type": "object",
                 "required": [
@@ -101,6 +101,9 @@
                   },
                   "related_pull_requests": {
                     "type": "array"
+                  },
+                  "content_review": {
+                    "$ref": "#/$defs/contentReview"
                   }
                 }
               }
@@ -560,6 +563,82 @@
         }
       },
       "additionalProperties": false
+    },
+    "contentEvidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "sha",
+        "captured_at",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "state": {
+          "enum": [
+            "read",
+            "empty",
+            "unavailable",
+            "omitted_sensitive"
+          ]
+        },
+        "excerpt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "pre_model_redaction": {
+          "const": false
+        }
+      }
+    },
+    "contentReview": {
+      "type": "object",
+      "required": [
+        "state",
+        "evidence",
+        "comparison",
+        "scope"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "unresolved",
+            "unread",
+            "partial",
+            "inspected",
+            "unavailable"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/contentEvidence"
+          }
+        },
+        "comparison": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "scope": {
+          "const": "bounded_readme_and_one_representative_file_not_full_branch_audit"
+        }
+      }
     }
   }
 }

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NAME = 'github-work-inspector-chat'
 
 
-def build(output, github_app_id, source_sha):
+def build(output, github_app_id, source_sha, base_manifest=None):
     if not re.fullmatch(r'connector_[A-Za-z0-9][A-Za-z0-9_-]*', github_app_id or ''):
         raise ValueError('A verified existing GitHub connector app ID is required')
     if not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', source_sha or ''):
@@ -36,19 +36,39 @@ def build(output, github_app_id, source_sha):
     assert manifest['name'] == NAME and manifest['extensions']['com.openai']['apps'] == './.app.json'
     assert len(manifest['extensions']['com.openai']['interface']['shortDescription']) <= 30
     assert not any(name in entries for name in ['mcp.json', '.mcp.json'])
+    if base_manifest is not None:
+        previous = json.loads(base_manifest.read_text(encoding='utf-8'))
+        if previous.get('name') != NAME or previous.get('extensions', {}).get('com.openai', {}).get('apps') != './.app.json':
+            raise ValueError('Existing account manifest identity/dependency mismatch')
+        old_interface = previous['extensions']['com.openai']['interface']
+        if old_interface.get('defaultPrompt') != manifest['extensions']['com.openai']['interface']['defaultPrompt']:
+            raise ValueError('Preserve the existing defaultPrompt exactly')
+        # Preserve account-owned author/contact/presentation fields outside the requested change.
+        effective = previous
+        effective['version'] = manifest['version']
+        effective['description'] = manifest['description']
+        for field in ['displayName', 'shortDescription', 'longDescription']:
+            old_interface[field] = manifest['extensions']['com.openai']['interface'][field]
+        manifest = effective
+        entries['plugin.json'] = (json.dumps(manifest, indent=2, ensure_ascii=False)+'\n').encode()
+    overlay = {key: value for key, value in manifest.items() if key not in ['$schema', 'extensions']}
+    overlay.update({'interface': manifest['extensions']['com.openai']['interface'], 'apps': './.app.json', 'skills': './skills'})
+    entries['.codex-plugin/plugin.json'] = (json.dumps(overlay, indent=2, ensure_ascii=False)+'\n').encode()
     entries['.app.json'] = (json.dumps({'apps': {'github': {'id': github_app_id}}}, indent=2)+'\n').encode()
     for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:
         entries[name] = (ROOT/name).read_bytes()
     for path in (ROOT/'third-party').rglob('*'):
         if path.is_file():
             entries[path.relative_to(ROOT).as_posix()] = path.read_bytes()
-    lock = json.loads((ROOT/'docs/CORE-LOCK.json').read_text())
+    lock = json.loads((ROOT/'docs/CORE-LOCK.json').read_text(encoding='utf-8'))
     entries['BUILD-INFO.json'] = (json.dumps({
         'package': NAME, 'version': manifest['version'], 'source_sha': source_sha,
         'shared_core_digest': lock['core_digest'], 'contract_version': lock['contract_version'],
         'intended_scope': 'private_personal_account', 'account_registration_performed': False,
         'dependency': 'Existing connected GitHub app; no new OAuth or scope requested',
         'rust_in_chat_runtime': False, 'native_ui_verified': False,
+        'products': ['CHAT', 'CODEX'], 'acquisition': 'existing_github_app',
+        'ui_template': 'skills/github-repo-review-chat/references/overview.fragment.html',
         'entry_hashes': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(entries.items())},
     }, indent=2)+'\n').encode()
     # Reject task-local paths and obvious credentials before producing an uploadable ZIP.
@@ -80,5 +100,6 @@ if __name__ == '__main__':
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--github-app-id', required=True, help='Copy only an app ID verified by backend discovery; syntax checking does not verify authorization.')
     parser.add_argument('--source-sha', required=True)
+    parser.add_argument('--base-manifest', type=Path, help='Exact current account root manifest; preserves unrelated metadata on update.')
     args = parser.parse_args()
-    print(json.dumps(build(args.out, args.github_app_id, args.source_sha)))
+    print(json.dumps(build(args.out, args.github_app_id, args.source_sha, args.base_manifest)))

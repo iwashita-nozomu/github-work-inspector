@@ -4,18 +4,28 @@
 明示呼び出し用 Skill をまとめたローカルプラグイン。HTTPサーバー・待受ポート・WebView・AI API・新しい認証は使いません。
 Work版の通信は、既存認証済み `gh` を引数配列で起動する固定GETだけです。
 
-## Chat companion と共有核（開発中）
+## Chat / Work の共通入口と共有核（開発中）
 
 `core/` に正規化schema、capability定義、意味・根拠・選択の手順、純粋なview/selection JSを置きます。
 WorkとChatのSkill/参照資産は `python3 scripts/sync-review-core.py` で生成し、CIの `--check` で乖離を検出します。
 WorkのRustも同じcontract/profileを読み、snapshotと選択commitの `review_core` に取得能力を記録します。
-これは**共通のRust実行環境**ではありません。Chatは接続済みGitHub app、Workは既存gh/Rustが取得します。
+これは**共通のRust実行環境**ではありません。account版はChat/Workで同じ接続済みGitHub appを使います。従来のWork専用版の既存gh/Rustは別の任意アダプタです。
 Chatの正規化JSはnative fragment等で実行可能な場合の共通参照実装で、通常のGPT turnにJS実行を保証しません。
 
 Chat用sourceは `plugins/github-work-inspector-chat`。private account登録向けだけで、独自MCP/serverやbinaryを
 含みません。既定枝はrepo metadata、枝検索は名前だけ、recent commitsは全枝の履歴ではありません。
 同一ref compareで観測tipを解決できても親一覧は得られず、完全DAGを作りません。fetch_commitにはfile/byte制限がなく、
 Workのfile限定転送・モデルへ渡す前の秘匿も適用されません。詳細は [Chatアダプタ](docs/chat-review-workflow.md)。
+
+共通入口v0.2.0は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
+限定読取りを行います。最大10頁/1000枝、各2file・60行・表示8KiB。失敗・未読・内容不足を分け、枝数と内容coverageを
+図内へ表示します。parentsがないconnectorでは履歴DAGを捏造しません。全branchの全文監査ではありません。
+共有Survey.planは未取得read requestを列挙し、hostが既存GitHub toolsを実行します。JSやSkill単独でホストの遵守は強制しません。
+
+`core/overview.fragment.html` と共通JSが検索・20件ページ切替・常時基準・選択内容/根拠panelを実装します。
+GPTの意味要約は同じtipの取得成功file evidenceに結び付け、ない場合は要約未生成/内容未確認を表示します。
+`scripts/render-overview.cjs --model MODEL.json --out VIEW.html` は同じbuildFragmentでローカルfragmentを組立てます。
+サーバーは起動しません。生成ファイル・模擬DOM操作・private package作成は、Chat/Workでの実描画/送信成功とは異なります。
 
 `scripts/package-chat.py --out PACKAGE.zip --source-sha FULL_SHA --github-app-id VERIFIED_APP_ID` で、backendで確認した
 既存GitHub app IDだけを渡してprivate account ZIPを生成します。ID未指定では完成packageを作りません。
@@ -109,7 +119,7 @@ Python版はRust版に置換しました。`python -m github_work_inspector` は
 DAGはSHA順で、親が取得範囲外なら `?` を付けます。時系列・topological順とは限りません。
 branch間で重複するcommitを統合し、各branchの取得範囲と打切りを記録します。
 
-開発中のブランチ俯瞰では、取得済み一覧の最大100枝を履歴標本（4枝程度）と分け、各枝の目的・他枝との違い・関連PR・統合の観測を図内カードで先に
+開発中のブランチ俯瞰では、取得済み一覧の全枝（Rustは取得上限あり）を履歴標本（4枝程度）と分け、各枝の目的・他枝との違い・関連PR・統合の観測を図内カードで先に
 比べ、枝の履歴、選択commit/fileの詳細へ進みます。GPTの説明は根拠と著者説明/推定/不明を分けます。
 比較基準は `repository.default_branch` と観測tipを常時表示し、mainに固定しません。
 一覧の件数・ページ外の既定枝は最大1回の固定GETで確保し、失敗も明記します。採用枝/commit上限は増やしません。

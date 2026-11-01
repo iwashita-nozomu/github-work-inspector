@@ -37,3 +37,8 @@ assert (chat/'skills/github-repo-review-chat/references/review-selection.js').re
 # This dependency file is emitted only by package-chat.py with a verified app ID.
 assert not (chat/'.app.json').exists()
 print(json.dumps({'plugin':a['name'],'version':version,'offline_manifest_checks':'passed'}))
+
+for prefix in [root/'.agents/skills/github-work-inspector/references', plugin/'skills/github-work-inspector-plugin/references', chat/'skills/github-repo-review-chat/references']:
+    assert (prefix/'overview.fragment.html').read_bytes() == (root/'core/overview.fragment.html').read_bytes()
+products = (chat/'skills/github-repo-review-chat/agents/openai.yaml').read_text(encoding='utf-8')
+assert '    - CHAT' in products and '    - CODEX' in products

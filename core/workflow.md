@@ -17,7 +17,7 @@
 
 ## 俯瞰から履歴へ
 
-- 取得済みの最大100枝を意味の俯瞰カード/比較表に置く。名前だけの巨大プルダウンは補助検索。
+- 取得済みの全枝（connector上限1000枝、Rustは別の取得上限）を意味の俯瞰カード/比較表に置く。名前だけの巨大プルダウンは補助検索。
   各枝に目的、他枝との違い、統合/未統合について観測できたこと、関連PRと未取得部分を示す。
   名前だけから目的・実験系列・新旧・完了を断定せず、commit/PR/取得済みfileの根拠を添える。
   著者の説明はauthor_claim、GPTの解釈はinference、根拠不足はunknownと区別する。
@@ -30,7 +30,7 @@
 - PR関連付けは同じhead repoと完全なhead refの観測で確認する。同名forkやhead不明は未確認とする。
   merged PRと現在tip一致を区別する。有限DAGの経路欠落、CI成功、PRのmergedだけから未統合・完了・
   merge可能性を断定しない。compare値を使う場合も比較基準・解決SHA・時刻・取得範囲を明示する。
-- 初期図で全枝の履歴/差分を取得しない。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
+- 初期図で全枝のcommit履歴/patchを取得しない。connector共通入口では全枝のtip内容を限定取得する。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
   図内に短い変更要約と根拠を置き、自動選択した代表fileの別枠長文説明にはしない。
   実枝名と短いcommitラベルでcompactに配置し、320/768/1024pxと明暗で折返し・重なりを確認する。
 
@@ -43,11 +43,11 @@
 - viewは `repository,captured_at,source_adapter,targets` を保持する。commitは完全SHA、Work fileは
   観測file_id/index、Chat fileは完全SHAと観測した正確なpathに固定する。SHA256をモデルが捏造しない。
   未解決のbranch参照はbranch refとして保持し、commit SHAに見せない。古いview/未知ID/不整合は確認する。
-- `GitHubReviewSelection.bindOverview` はbranch_overviewのカードと既存local履歴panelを結ぶ。
-  data-branch-baseline/source/coverage/cards欄、data-branch-historyとbranch_idを用意する。
-  GPT summariesは `{branch_id,tip_sha,purpose:{text,kind,evidence},difference:{text,kind,evidence}}`。
-  根拠IDは観測commit/FULL_SHAかpull/NUMBER。tip不明の説明はbranch ref/PR時点の説明に限定し、
-  現在tipの実装説明とはしない。履歴panel未作成は開く操作を無効にし、架空の履歴を補わない。
+- 標準描画は同梱 `references/overview.fragment.html` と `GitHubReviewOverview.mount` を使う。
+  検索/20件ページ切替/基準/全数/内容状態/選択panelを実装済みで、空のpanelをhostが補う必要はない。
+  GPT summariesはbranch_id/tip_sha/purpose{text,kind,evidence}。connector共通入口の目的要約は
+  同一SHAの取得成功file evidence IDを必須とし、未読やPRのみの説明を内容確認済みとしない。
+  Rust版でcontent_reviewがない場合は内容未読を表示し、既存のcommit/PR事実と区別する。
 - `create`/`bind` のtargetsを実buttonのdata-review-idへ結び、data-review-selection、data-review-ask、
   readonly data-review-fallback、aria-liveのdata-review-statusを置く。選択クリックはlocal表示だけ。
   枝変更時は旧commit/file選択を消す。データはJSONとして `<` 等をescapeし、表示はtextContentを使う。

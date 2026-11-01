@@ -1,8 +1,9 @@
 interface:
-  display_name: "GitHub Inspector · Chat"
-  short_description: "Git repo overview in Chat"
+  display_name: "GitHub Inspector"
+  short_description: "Git branches with evidence"
   default_prompt: "このレポを見て"
 policy:
   allow_implicit_invocation: false
   products:
     - CHAT
+    - CODEX

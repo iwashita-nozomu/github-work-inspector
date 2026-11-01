@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def outputs():
-    contract_data = json.loads((ROOT/'core/contract.json').read_text())
-    schema = json.loads((ROOT/'core/observation.schema.json').read_text())
+    contract_data = json.loads((ROOT/'core/contract.json').read_text(encoding='utf-8'))
+    schema = json.loads((ROOT/'core/observation.schema.json').read_text(encoding='utf-8'))
     assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
     assert set(contract_data['profiles']) == set(schema['$defs']['provenance']['properties']['adapter']['enum'])
     capability_keys = set(schema['$defs']['provenance']['properties']['capabilities']['required'])
@@ -22,18 +22,18 @@ def outputs():
     digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
     lock['core_digest'] = digest
     marker = f'<!-- Generated from core/; edit the authored source. Core digest: {digest} -->\n'
-    contract = (ROOT/'core/contract.json').read_text()
+    contract = (ROOT/'core/contract.json').read_text(encoding='utf-8')
     bundle = ('/* Generated from core/; consistency digest: ' + digest + ' */\n'
               + 'globalThis.GitHubReviewCoreContract = Object.freeze(' + contract.strip() + ');\n'
-              + (ROOT/'core/normalize.js').read_text() + '\n' + (ROOT/'core/selection.js').read_text())
-    common = (ROOT/'core/workflow.md').read_text()
-    work = (ROOT/'core/adapters/work.md').read_text()
-    chat = (ROOT/'core/adapters/chat.md').read_text()
+              + (ROOT/'core/normalize.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/survey.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/selection.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/overview.js').read_text(encoding='utf-8'))
+    common = (ROOT/'core/workflow.md').read_text(encoding='utf-8')
+    work = (ROOT/'core/adapters/work.md').read_text(encoding='utf-8')
+    chat = (ROOT/'core/adapters/chat.md').read_text(encoding='utf-8')
     result = {
         'docs/repository-review-workflow.md': marker + common + '\n' + work,
         'docs/chat-review-workflow.md': marker + common + '\n' + chat,
         'docs/core-contract.json': contract,
-        'docs/core-observation.schema.json': (ROOT/'core/observation.schema.json').read_text(),
+        'docs/core-observation.schema.json': (ROOT/'core/observation.schema.json').read_text(encoding='utf-8'),
         'docs/CORE-LOCK.json': json.dumps(lock, indent=2) + '\n',
     }
     for prefix, entry, adapter in [
@@ -42,14 +42,15 @@ def outputs():
         ('plugins/github-work-inspector-chat/skills/github-repo-review-chat', 'chat', chat),
     ]:
         # Frontmatter must remain the first bytes; the generated marker follows it.
-        entry_text = (ROOT/f'core/entries/{entry}.md').read_text()
+        entry_text = (ROOT/f'core/entries/{entry}.md').read_text(encoding='utf-8')
         position = entry_text.index('\n---\n', 4) + len('\n---\n')
         entry_text = entry_text[:position] + '\n' + marker + entry_text[position:]
         result[f'{prefix}/SKILL.md'] = entry_text + '\n' + common + '\n' + adapter
         result[f'{prefix}/references/review-selection.js'] = bundle
+        result[f'{prefix}/references/overview.fragment.html'] = (ROOT/'core/overview.fragment.html').read_text(encoding='utf-8')
     chat_ref = 'plugins/github-work-inspector-chat/skills/github-repo-review-chat/references/'
     result[chat_ref+'core-contract.json'] = contract
-    result[chat_ref+'observation.schema.json'] = (ROOT/'core/observation.schema.json').read_text()
+    result[chat_ref+'observation.schema.json'] = (ROOT/'core/observation.schema.json').read_text(encoding='utf-8')
     result[chat_ref+'CORE-LOCK.json'] = json.dumps(lock, indent=2) + '\n'
     return result
 

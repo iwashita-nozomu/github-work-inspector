@@ -1,7 +1,7 @@
 ---
 name: github-repo-review-chat
-description: Chatで明示選択し、接続済みGitHubとWork共通の契約で枝の意味を俯瞰し、選択した根拠を深掘りする。
+description: ChatとWorkの共通入口。明示選択したrepoの全枝を列挙し、各tipの内容根拠を読み、図内で選択して深掘りする。
 ---
 
-個人用Chatプラグイン。既存GitHub appを取得アダプタにし、下記のWork共通核を使う。
+既存GitHub appを取得経路とする個人用の共通入口。下記のWork共通核を使う。
 RustやMacのlocal MCPを実行したとは扱わない。appの許可範囲はhostが管理し、このSkillはACLではない。
