@@ -1,39 +1,19 @@
-# 共通入口の取得アダプタ: 接続済みGitHub app（Chat / Work）
+# Chat / Work共通取得アダプタ: 既存GitHub app
 
-このaccount SkillはCHATとCODEXの両方で既存GitHub appを使う。local stdioを必須依存にしない。
-従来のWork Rust版は任意の別取得アダプタであり、この入口がRustを実行したと偽らない。
-書込みtoolを使わず、新規OAuth/認証/権限/サーバーを要求しない。このSkill自体はACLではない。
-GitHub appの応答はGPTへ届く。正規化/表示時の秘密省略はRustの取得前マスキングと同等ではない。
+CHATとCODEXの両方で、明示選択した同じrepoを既存GitHub appの許可範囲内で読む。
+local stdio MCP/Rust/追加サーバーはこの共通入口の必須依存にしない。新規OAuth・権限・認証変更はしない。
+応答はGPTへ到着するため、Rustの取得前マスキングと同等とは説明しない。
 
-## 標準入力「このレポを見て」の必須処理
+短い「このレポを見て」でも共通の全文探索手順を使う。最初にsearch_repositoriesで正確なrepoとdefault_branchを確認し、
+search_branches({owner,repo_name,query:"",page_size:100})をcursor:nullまで全頁保持する。
+`branch_pages`、`tip_resolutions`、`history_commits`、`reading` を元入力に保存し、normalizeChat→Acquisition.planを繰り返す。
+requestsをhostが既存toolで実行し、tasksの本文をGPTが実際に読み/解釈し、その根拠を記録する。
+Reading.receipt/pageReceiptへ正しい要求と実応答を渡す。GET成功だけではfile_reviews/branch_reviewsを生成しない。
+PR/recent commitsは補助標本であり全枝の内容/履歴の代替ではない。
 
-短い入力でも、枝名だけの表・PRだけの表・描画なしを完了扱いしない。利用者の「一覧だけ」等は優先する。
-`references/review-selection.js` の共通normalize/Acquisition.planと、下記の取得順を使う。
-JSを実行できない取得turnでは同じ契約をhostが適用し、JS実行済みとは言わない。次のnative fragmentの
-scriptでは実際に正規化と描画を実行する。取得の実行主体は常にhostであり、viewからtoolを呼ばない。
-
-1. search_repositoriesの完全一致repository_full_nameとdefault_branchを確認。mainという枝名から既定枝を決めない。
-2. search_branches({owner,repo_name,query:"",page_size:100})の**全branches**を保持し、返ったcursorをそのまま次へ渡す。
-   空応答でもcursorがあれば未終端。cursor:nullまで、最大10頁/1000枝。反復cursor/上限/失敗時はpartialと理由を明示。
-   ページごとのbranches/cursor/captured_atを残す。取得枝数=正規化枝数=全表示対象数を検査し、表示1頁20件と混同しない。
-   既定枝が後ろにあっても消さず、基準欄へ常時表示。範囲外/未取得ならその事実を残す。
-3. 共通核の「全枝を網羅する探索順」に従う。既定枝を先に限定調査・要約してから、残りを固定順で巡回する。
-   Acquisition.planのrequestsはhostが既存GitHub appで実行し、各応答で再正規化する。
-   tip_resolutionsは{ref,captured_at,result}、失敗は{ref,captured_at,error:"tip_resolution_failed"}。
-   branch_readsはref/sha/captured_at/comparisonまたはcomparison_error/filesを保持する。
-   filesはpath/start_line:1/end_line:60/captured_at/contentまたはerror。基準側の代表fileは
-   baseline_files:[{sha:BASE_FULL_SHA,path,start_line:1,end_line:60,captured_at,contentまたはerror}] に記録する。
-   基準側は同一repo/基準完全SHAへ固定。比較resultのbase/headも完全SHAと照合する。
-4. README+代表fileは各60行/表示8KiB、基準側追加1fileまで。秘密らしいpath/内容、data、巨大成果物を避け、
-   取得不能や不足は明示する。既知のCMakeLists.txt probe失敗時に別path総当たりはしない。
-   providerの行範囲制限を応答で確認する。raw内容をログ/公開fixtureへ保存しない。
-5. branch_summariesで各refの目的と違いを記録し、全枝のexploration状態・未確認数・再開位置を図内へ表示する。
-   要約はfile証拠に固定し、同じREADMEだけから枝固有の違い・意図・完了を断定しない。
-   normalizeChatへ全branch_pages/tip_resolutions/branch_reads/branch_summariesを渡す。
-   request_budgetで止まっても未着手枝を落とさず、checkpointと観測一式を保持する。
-
-PR（search_prs最大20件）とrecent commits（search_commits最大8件）は補助標本。枝ref引数のないrecentは
-全枝の履歴ではない。exact head repo/refでのみPRを関連付ける。search_commits/fetch_commitのparents未提供はnull。履歴用Git data GETで取得したparentsだけをDAGへ採用する。
+初期調査は全枝tipの必要な全文と全変更本文、設定・文書・テスト・結果・実call paths。
+commit patchの深掘りは選択後という二段階を保つ。Annexはpathと固定commitの対応だけで十分。
+取得能力不足なら未取得/未読/未解釈を説明し、connector代替やテキスト出力を専用機能/描画の成功にしない。
 
 ## 実装済みテンプレートで表示する（必須の完了条件）
 

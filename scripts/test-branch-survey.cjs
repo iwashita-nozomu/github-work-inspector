@@ -87,7 +87,7 @@ test('shipped template has concrete controls; 42 branch search/pagination/defaul
   const evidence = m.snapshot.branch_overview.items[0].content_review.evidence[1];
   m.summaries = [{ branch_id: m.snapshot.branch_overview.items[0].branch_id, tip_sha: B, purpose: { text: 'キュー処理を限定する', kind: 'inference', evidence: [evidence.id] } }];
   const view = ui.mount(element, m, () => ({ sendFollowUpMessage: (p) => calls.push(p) }));
-  assert.equal(c['overview-cards'].children.length, 20); assert.ok(texts(c['overview-cards']).includes('進行中')); assert.ok(c['overview-coverage'].textContent.includes('処理済 0 / 残り 42')); assert.ok(c['overview-baseline'].textContent.includes('main')); assert.ok(texts(c['overview-cards']).includes('キュー処理を限定する'));
+  assert.equal(c['overview-cards'].children.length, 20); assert.ok(texts(c['overview-cards']).includes('読解中')); assert.ok(c['overview-coverage'].textContent.includes('未解釈/部分確認 42')); assert.ok(c['overview-baseline'].textContent.includes('main')); assert.ok(texts(c['overview-cards']).includes('未解釈')); assert.ok(!texts(c['overview-cards']).includes('キュー処理を限定する'));
   await c['overview-next'].click(); assert.equal(view.state().page, 1); assert.ok(texts(c['overview-cards']).includes('main'));
   await c['overview-next'].click(); assert.equal(c['overview-cards'].children.length, 2);
   c['overview-search'].value = 'main'; c['overview-search'].handlers.input(); assert.equal(view.state().matched, 1); assert.equal(view.state().page, 0);
@@ -109,6 +109,7 @@ test('file selection/manual fallback preserve pinned references; forged summary 
   assert.ok(!request.selection.file_id); assert.ok(!c['review-fallback'].value.includes('bounded worker'));
   const template = fs.readFileSync(path.join(prefix, 'overview.fragment.html'), 'utf8');
   m.summaries = [{ text: '</script><img onerror="bad()">\u2028' }];
+  m.snapshot.dag.nodes.push({sha:'f'.repeat(40),subject:'</script><img onerror="bad()">\u2028',parents:null}); // retained graph data stays escaped even in a compact projection
   const html = ui.buildFragment(template, bundle, m); assert.ok(!html.includes('<img onerror')); assert.ok(html.includes('\\u003c/script\\u003e')); assert.ok(!html.includes('const gwiModel = /*__REVIEW_MODEL__*/'));
   assert.ok(!/\b(?:fetch|XMLHttpRequest|WebSocket)\s*\(/.test(bundle));
 });

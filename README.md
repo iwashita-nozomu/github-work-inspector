@@ -17,11 +17,19 @@ Chat用sourceは `plugins/github-work-inspector-chat`。private account登録向
 同一ref compareはtipを解決し、既存GitHub appの固定GET `/git/commits/FULL_SHA` で実parentsを取得します。fetch_commitにはfile/byte制限がなく、
 Workのfile限定転送・モデルへ渡す前の秘匿も適用されません。詳細は [Chatアダプタ](docs/chat-review-workflow.md)。
 
-共通入口v0.3.0は、取得した全枝を保持し、全tipの完全SHA解決→既定tipとの比較→READMEと代表code/config/docの
-限定読取りを行います。最大10頁/1000枝、各2fileと基準側追加1file・60行・表示8KiB。失敗・未読・内容不足を分け、枝数と内容coverageを
-図内へ表示します。親付きGit dataから96commit・深さ12・枝ごと32件までの有限DAGを構成し、親が未取得なら境界を示します。全branchの全文監査ではありません。
-共有Acquisition.planは全頁列挙→既定枝の限定調査→残りのref固定順の巡回を計画します。処理済み/未確認と5状態、終了条件、予算停止時のcheckpoint+観測snapshotによる再開を実装し、未読での終了を防ぎます。代表fileの基準側が未読なら部分確認で、同じREADMEのみで差分確認済みとはしません。
-未取得read requestを列挙し、hostが既存GitHub toolsを実行します。JSやSkill単独でホストの遵守は強制しません。
+共通入口v0.4.0は、全頁列挙→既定枝を先に固定SHAの全tree/本文→残りのref固定順、で読みます。
+同一blobは再利用し、各版の全文（全変更本文を含む）、設定・文書・テスト・結果・実際に必要な呼出先を扱います。
+大きいtextは120行ずつ**最後の空応答まで**取得し、モデルの全範囲読解と意味を別々に記録します。
+取得済み、プログラムの全件解析、GPTの意味解釈を分離し、旧60行previewや同じREADMEだけでは完了しません。
+成果は各枝の設計・実装・基準との差・根拠・限界です。理解の申告を機械的証明や実験成功とも説明しません。
+Annexはpathと固定commitの特定までを標準とし、実体取得を阻害条件にしません。
+
+共有Acquisition.planとReading.planは、tree残queue、本文未読、解釈未記録、必要callee未確認を保持します。
+request_budgetは一回の発行枠であり全作業の終了条件ではありません。checkpoint+元の観測/読解記録で再開し、
+既知SHAの差替えや完了根拠の消失を拒否します。v0.3の限定preview checkpointは全文理解へ昇格させず、
+既存のparent履歴・選択参照は保持します。依存の無関係な上流全体へ探索を広げません。
+未取得requestと本文/解釈taskをhostが実行します。JSやSkillがGPTの理解や遵守を強制する仕組みではありません。
+有限履歴は従来どおり実parentsから96commit・深さ12・枝ごと32件まで。全履歴保証と内容理解は別です。
 
 `core/overview.fragment.html` と共通JSが検索・20件ページ切替・常時基準・選択内容/根拠panelを実装します。
 GPTの意味要約は同じtipの取得成功file evidenceに結び付け、ない場合は要約未生成/内容未確認を表示します。

@@ -57,7 +57,7 @@ test('real SVG paths/labels and ref selection connect to immutable commit detail
 
 test('default acquisition plan inserts actual tip history before content and does not finish with cards alone',()=>{
  const x=input();let p=Acquire.plan(snapshot(x));assert.equal(p.phase,'read_branch_tip_history');assert.equal(p.requests[0].args.url,H.request(repo,M).args.url);assert.equal(p.workflow_complete,false);
- x.history_commits.push(record(M));p=Acquire.plan(snapshot(x));assert.equal(p.phase,'inspect_default_branch_first');assert.equal(p.requests[0].method,'compare_commits');
+ x.history_commits.push(record(M));p=Acquire.plan(snapshot(x));assert.equal(p.phase,'inventory_entire_tree');assert.equal(p.requests[0].method,'fetch');assert.equal(p.requests[0].key,'commit/'+M);
  const paused=input();assert.equal(Acquire.plan(snapshot(paused),{request_budget:0}).paused,true);
 });
 
@@ -68,11 +68,11 @@ test('parent order drives topological layout and unsafe labels stay text while n
  const template=fs.readFileSync(path.join(prefix,'overview.fragment.html'),'utf8');const html=UI.buildFragment(template,bundle,{captured_at:at,snapshot:hostile});assert.ok(!html.includes('<img onerror'));assert.ok(html.includes('data-history-graph'));
 });
 
-test('full default workflow retains all-ref content traversal, history queue and checkpoints before finishing',()=>{
+test('legacy bounded preview completion preserves history but cannot finish the new whole-source workflow',()=>{
  const x=input();x.branch_reads=[];x.branch_summaries=[];let checkpoint=null,requests=0,finished=false;
  for(let i=0;i<150;i++){
-  const p=Acquire.plan(snapshot(x),checkpoint?{checkpoint}:{});checkpoint=plain(p.checkpoint);
-  if(p.workflow_complete){assert.equal(p.progress.counts.acquired,3);assert.equal(p.progress.counts.checked,3);assert.equal(p.history_coverage.observed,7);finished=true;break;}
+  const p=ctx.GitHubReviewSurvey.plan(snapshot(x));checkpoint=plain(p.checkpoint);
+  if(p.progress.all_checked){finished=true;break;}
   assert.ok(p.requests.length||p.tasks.length,'no silent completion without history');
   for(const q of p.requests){requests++;if(q.method==='fetch'){x.history_commits.push(record(q.key.slice(8)));continue;}
    const ref=p.target_ref,tip=ref==='main'?M:F;let r=x.branch_reads.find(r=>r.ref===ref);if(!r){r={ref,sha:tip,captured_at:at,files:[],baseline_files:[]};x.branch_reads.push(r);}
@@ -81,7 +81,7 @@ test('full default workflow retains all-ref content traversal, history queue and
   }
   for(const t of p.tasks)x.branch_summaries.push({ref:t.ref,sha:t.sha,status:'recorded',purpose:{text:'有限範囲の実装という推定',kind:'inference',evidence:t.evidence_ids.slice(0,1)},difference:{text:'両tipの観測fileに基づく違い',kind:'inference',evidence:t.evidence_ids.slice(0,6)}});
  }
- assert.equal(finished,true);assert.ok(requests<30);assert.equal(snapshot(x).dag.per_branch.length,3);assert.equal(snapshot(x).partial,false);
+ assert.equal(finished,true);assert.ok(requests<30);complete(x);assert.equal(snapshot(x).dag.per_branch.length,3);assert.equal(snapshot(x).partial,true);const next=Acquire.plan(snapshot(x));assert.equal(next.workflow_complete,false);assert.equal(next.requests[0].key,'commit/'+M);assert.equal(next.progress.counts.checked,0);assert.ok(checkpoint);
 });
 
 test('octopus parent cap exposes omitted counts and never describes a truncated parent list as a complete merge',()=>{

@@ -1,25 +1,26 @@
 {
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "authored_files": {
-    "core/adapters/chat.md": "ca30f6663b0fc6dbfa522036749d1d24bed81e65b10f70fb3362a4c44a1818f3",
-    "core/adapters/work.md": "43936b740e61d1ff76180a0a978f4ba1b2e3e01574ccb5b56de96f094ed7c4fa",
-    "core/contract.json": "66e1143f90eb025accb7ade03b6782c861f5e4f41d4040f751b4de4c300dc1e5",
+    "core/adapters/chat.md": "9d03f3b6817dff898424925df6fb5fe471ffee6184d75d2fb5542c59967f2d10",
+    "core/adapters/work.md": "83ce6dcba12b884bb53a0be41e1f47aab6bb14e55b0d892e9cfe2bba4dc2649a",
+    "core/contract.json": "4027e5466bdd5845d4f4198af73958073ee6bdc2d62fd8d158f03985b121c930",
     "core/entries/chat.md": "4e94756b9e8e6bef6c93ba0f8daff85de96a231c8d86a27b43e1d9c0ffbe02a6",
     "core/entries/work-cli.md": "8d0e0df2e5d9e75c6da369a1f7b016aaefacc21860fdfcbe0db8e7f19f53b611",
     "core/entries/work-plugin.md": "7a08b98180ace435aef4fb98d56db9873b3a75f46e181cb493391e7cfea53bc8",
-    "core/exploration.js": "57133d2fe0d8446f05c9a10e4e74aec6391f6be108abb3c72c241e13b4145428",
-    "core/exploration.md": "5c02de96b2c0947a823eaf44e88b3b6e72a1b1c16cf26930bdc60f45e56f4184",
+    "core/exploration.js": "29322ba362e4d8831997f15f575a5ccdf2ee724e723b777cf4419f3cad875d3b",
+    "core/exploration.md": "d8b11cabd0b3cee59be3894bf1bd4c834697189104f25f5b635fb0173fd07024",
     "core/history-graph.js": "9745fb2f3fac5b29a10289548475c64237be1fd0bbb5cb846d0c895561c04a39",
-    "core/history.js": "b0e467ebb3e0f3938ef67549158b20c6ad2f4f2af64fd5d8c46cb5edf156daca",
-    "core/history.md": "c31134c4dac354516c20951501a5cea08299df1104453e1c7b9fbe8ed3e7c2c4",
-    "core/normalize.js": "f28afc130504264b8f2787f18bacc2684a00ed5a28dd9645fa2733ea69456e3b",
-    "core/observation.schema.json": "4fe7d09c14b78d39d9d952226da1153d8d1c65099799d78d085ec773e14fb407",
+    "core/history.js": "21532c8e255de20069a358b20a4f93567ea08ddf66bf83e5db2dbd8f604fd8f5",
+    "core/history.md": "6666cc107dd400ebdcee213ee7a6eeb0014a04d59ecd40f1022237c308605704",
+    "core/normalize.js": "f513de8596627e3622f22ce41112eee414d7ac59a6351728d1d2558c94740156",
+    "core/observation.schema.json": "f451606237d1cbbfc476f47b0d11eb6225adf437476b8a01b0233e53105beaab",
     "core/overview.fragment.html": "a9644f5627bc4e129b2bdfdcce92e5233a0b7dde2ccd93b8f33c3893c600caba",
-    "core/overview.js": "cdb315ab59b766be2e055dcd86025f4b7edf0817f0ca5d158089f5fe273a1354",
+    "core/overview.js": "3049f4642822b22fe5635c3de7702ee0e30c48afbfdbf3e760d384848e2b1dec",
+    "core/reading.js": "9dd7a7e83216a2ef86cc637017df0af7bc219bd0b4917dbc2fba40c02d65a38a",
     "core/selection.js": "9f9e4a48bc87b784be636baede7b1d47a2d19d25910a46e303973075b5938fd7",
     "core/survey.js": "393c0137520cd43cada350f2175f354a6908d761c5356c197ffcfddaa04a4c2b",
-    "core/workflow.md": "e2a438217920a296a894d088130e915f01db881cebd53544d7b25bf92d940368"
+    "core/workflow.md": "a9f35221e42faa5d63749e4a1a8da64fffc52d9ff322ec06b8c22fec690ca2a7"
   },
   "consistency_only_not_signature": true,
-  "core_digest": "c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70"
+  "core_digest": "4864d0640d18cfc0f30e20770ea2b25ad7093e03e86c4252aa5ae24aeae75cda"
 }

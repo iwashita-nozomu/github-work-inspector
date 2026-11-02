@@ -1,4 +1,4 @@
-<!-- Generated from core/; edit the authored source. Core digest: c422cbc6de80322651b199ba43a19c688d0b39a64196452406cea95085ca9f70 -->
+<!-- Generated from core/; edit the authored source. Core digest: 4864d0640d18cfc0f30e20770ea2b25ad7093e03e86c4252aa5ae24aeae75cda -->
 # 共通核: ブランチ俯瞰 → 枝の履歴 → 選択後の詳細
 
 このSkillを明示選択して「このレポを見て」と頼まれたら、各枝の目的・違い・観測状態を選択前に
@@ -31,7 +31,7 @@
 - PR関連付けは同じhead repoと完全なhead refの観測で確認する。同名forkやhead不明は未確認とする。
   merged PRと現在tip一致を区別する。有限DAGの経路欠落、CI成功、PRのmergedだけから未統合・完了・
   merge可能性を断定しない。compare値を使う場合も比較基準・解決SHA・時刻・取得範囲を明示する。
-- 初期図には親SHA付きの有限履歴窓を取得する。全履歴や全patchを無制限取得しない。connector共通入口では全枝のtip内容を限定取得する。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
+- 初期図には親SHA付きの有限履歴窓を取得する。全履歴や全patchを無制限取得しない。connector共通入口では全枝のtipの必要全文と枝固有変更、実呼出先まで読む。大きな標本はlocal検索・折畳み・20件程度のページ切替を使う。
   図内に短い変更要約と根拠を置き、自動選択した代表fileの別枠長文説明にはしない。
   実枝名と短いcommitラベルでcompactに配置し、320/768/1024pxと明暗で折返し・重なりを確認する。
 
@@ -56,7 +56,7 @@
   feature-detectした `window.openai.sendFollowUpMessage` を使う。未提供/失敗は参照付き質問をreadonly欄に
   表示し、手動コピーで質問する。MermaidのIDだけで選択送信可能と呼ばない。承認画面を勝手に操作しない。
 - 追加質問後だけ下記アダプタで必要な詳細を取得する。利用者のscopeとhostの承認を再確認し、WorkとChatの
-  locatorを混同しない。全commit/全fileの自動取得をしない。差分の取得単位が選択fileより広いアダプタは、
+  locatorを混同しない。全commit patchの自動取得をしない。初期tip全文読解と選択後のcommit差分は別。差分の取得単位が選択fileより広いアダプタは、
   その違いを取得前に説明し、選択fileだけの転送を保証しない。対応不能なら理由を示して止める。
 - GPTは実hunkから何をどう変更したか、条件付きの影響、未確認の理由/意図を説明する。完全SHA・path・
   file locator・hunkへ根拠を結び付ける。メッセージや行数だけを実装修正・原因・効果の確認としない。
@@ -72,49 +72,98 @@ native不可なら図は未表示と明記し、readonlyの一覧・根拠・参
 人の承認として扱わない。描画HTMLからfetch/API/networkやtoolを呼ばない。私的な結果を無断保存/公開しない。
 不足した接続・認証・許可は報告し、新規OAuthや権限追加をしない。Skillの明示選択は設定変更や書込みの承認ではない。
 
-## 全枝を網羅する探索順・進捗・終了条件
+## 全枝を読む標準手順と完了条件
 
-共通入口の全体計画は `GitHubReviewAcquisition.plan(snapshot, options)`。内容調査の下位計画は `GitHubReviewSurvey.plan(snapshot, options)`、実行主体はhostである。
-Skill/計画はホストの実行を強制する安全境界ではないが、名前を列挙しただけの未読状態で終了判定しない。
-以下の順を変えず、各取得後に観測を保存して再正規化・再計画する。新しいサーバーや常駐処理は不要。
+標準は `GitHubReviewAcquisition.plan(snapshot, options)`、内容側は `GitHubReviewReading.plan`。
+旧 `GitHubReviewSurvey.plan` は60行preview互換APIであり、全枝の理解の完了には使わない。
+実際の取得・全文読解・意味解釈を行うのはhost GPT。planner、hash、件数、JSON解析は理解の証明ではない。
+短い「このレポを見て」でも、次の順序で先に読む。代表fileや冒頭だけで終わらせない。
+利用者が一覧だけ等を指定した場合はその範囲を優先する。
 
-1. **全ページを先に列挙**。cursor:nullまで取得し、重複を除いた対象ref集合を確定する。
-   plannerは次cursorがある間 `enumerate_all_pages` を返し、先に枝内容へ進まない。
-   10頁/1000枝・反復cursor・取得失敗で止まる場合は、一覧そのものが部分的と表示したうえで既知の対象を固定する。
-   取得数=正規化数=表示対象数を検査。未列挙の枝を取得済みや存在しない扱いにしない。
-2. **観測した既定枝を先頭**、残りは正確なrefのUTF-16辞書順（locale非依存）に固定する。
-   例: 既定枝 → feature/1 → feature/10 → feature/2。既定枝の名前をmainに固定しない。
-   既定枝が最終ページや末尾でも最初に調べ、下記の限定調査と要約/状態記録が終わるまで次の枝へ進まない。
-   既存の同一SHAの観測は再利用する。全tipだけを先に解決して内容未読のまま終了しない。
-3. **各枝を順番に**: 同一ref比較でtip完全SHA固定 → Git dataで当該tipの親を観測 → 既定tipSHAとの比較 → READMEと安全な代表file取得
-   → 変更がある場合は代表fileの基準SHA側も取得 → GPTの根拠付き目的・違いの要約/不足記録 → 次の枝。
-   基準側は追加1file・60行/表示8KiBまで。同じrepo/SHA/path/行範囲と同じSHAペア比較のみcache再利用する。
-   同じREADMEを読めたことやahead件数は枝固有の差分を読んだ証拠にならない。変更fileの両tipの限定行範囲を
-   照合できなければ部分確認。これはcommit親patchや全diffを読んだ意味でもない。
-   基準不明/比較不能/安全な変更fileなし/削除等で不足するときは理由を残す。親関係やSHAは補完しない。
-4. **各refの要約を記録**。同一SHAならfile/比較を再利用できても、そのrefのsummary/statusを省略しない。
-   `branch_summaries` は `{ref,sha,status:"recorded",purpose:{text,kind,evidence},difference:{text,kind,evidence}}`。
-   変更ありのdifferenceは観測した両SHA側file evidence IDが必須。目的・違いを判断できない場合は
-   `{ref,sha,status:"insufficient"}` を記録し、不明を架空の説明で埋めない。`tasks:summarize_branch` はhost GPT向け
-   の固定計画項目であり新しいMCP tool/AI APIではない。観測factsと意味の推定を混ぜない。
-5. **進捗を全枝分保持**。`exploration.rows` の state は未着手(not_started)、進行中(in_progress)、
-   確認済(checked)、部分確認(partial)、取得不能(unavailable)。checkedは上記限定範囲と根拠付き要約が揃った状態で、
-   全コード監査完了ではない。pending requestやsummary taskがある枝はterminal:falseのまま。
-   失敗receiptは自動再試行せず、取得不能/部分確認と未読を区別する。in-flightも取得成功とは数えない。
-6. **予算停止と再開**。`request_budget` は今回発行するGET件数（既定4、同時最大4）。0や
-   `stop_reason:"budget"|"time"|"user"|"connection"` で止めると、未確認枝・pending key・再開ref/stageを返す。
-   `checkpoint` と **同じ観測snapshot/入力receipt一式**を保持する。checkpoint単独にはfile内容は入らない。
-   再開は `GitHubReviewAcquisition.plan(snapshot,{checkpoint,request_budget:...})`。対象集合、取得時刻、固定SHA、処理済receiptを検査し、
-   repo違い・tip差替え・処理済根拠の欠落を拒否する。refが進んでも保存済みSHAを黙って現在tipへ変更しない。
-   新しい枝/観測世代は別の探索として明示する。結果を無断で永続保存・公開しない。
-7. **終了判定**。`acquired = processed + remaining` と5状態の合計を検査する。
-   `not_confirmed = acquired - checked` は部分確認・取得不能・未着手・進行中を含む。
-   全取得枝のterminal状態が説明できれば `finished_known_targets:true`。
-   一覧終端も確認できた場合にだけ `complete:true`、さらに全枝checkedなら `all_checked:true`。
-   GETが0件でもsummary taskや未読枝があれば終了ではない。partial/unavailableを含む巡回終了と全枝確認は別である。
-   一覧が部分的なら既知の枝を全て処理しても全リポジトリを網羅したとは呼ばない。複数時点の非原子的観測も明示する。
+1. **全枝の全ページ**をcursor:nullまで列挙し、対象ref集合を確定する。既定枝はrepository metadataから取る。
+   上限10頁/1000枝・反復cursor・失敗は一覧の不足として明示し、既知対象も黙って落とさない。
+2. **既定枝を先に**、残りは正確なrefのlocale非依存UTF-16辞書順。同一ref比較でtip完全SHAを固定し、
+   Git data commitの親SHAとtree SHAを取得する。tipが進んだら別の観測世代とし、保存SHAを差し替えない。
+3. **全treeを列挙**する。固定GET `/repos/OWNER/REPO/git/trees/TREE_SHA` の非recursive応答を巡回し、
+   subtreeも読み切る。truncated:true、失敗、残queue、上限は不完了。directory順や名前から中身を推測しない。
+   基準枝と各枝の全path/blob/modeを比較し、追加・変更・削除を得る。renameを同名や類似名から捏造しない。
+4. **実装・設定・テスト・文書・結果の全体**を読む。同一blobは一度の読解を再利用できるが、異なるblobの
+   枝固有の変更はすべて読む。既定は各unique本文の全文で、各版の全変更本文もこの中に含む。
+   全文baseline＋完全差分で読む場合も、既読基底・全変更範囲・削除・正しい再構成を外部の検証手段で確認し、
+   省略diff、切り詰め出力、先頭60行を完全差分と呼ばない。本plannerはMST生成や差分再構成を実装したとは称しない。
+5. **実呼出先まで**追う。コードにあるAPI、module、共有実装、設定選択、実行入口、数学、oracle、保存結果を
+   結び、設計文書と実コードが一致するかを調べる。現在source・古いcheckpoint/run・計画だけの機能を分ける。
+   pinの存在だけで実際に使用されるとせず、実到達のある依存閉包だけを読む。未使用の上流全世界へ広げない。
+6. **各枝の意味を根拠付きで記録**する。目的、実装の振舞い、基準との違い、設定/結果の条件、文書との不一致、
+   重要経路、未確認の理由を説明する。同一SHAのaliasにもrefごとの意味を残す。件数台帳を成果の代わりにしない。
+   観測事実、著者の報告、GPT推定、不明を区別し、commit messageだけで意図や効果を事実扱いしない。
+7. 以上が揃ってから、枝の意味・短い変更要約・根拠をカードと実parentに基づく履歴図へ埋め込む。
+   選択→「詳しく聞く」→必要なcommit/file差分の追加取得を維持する。全commit patchの自動収集とは別である。
 
-内容調査の `complete` だけでは全体終了ではない。後述の親SHA付き履歴窓の取得・SVG表示も必要。全体checkpointはcontent/historyを束ね、旧内容checkpointも固定SHAを検査して引き継ぐ。
+### 取得と読解の入力契約
+
+`normalizeChat` の入力に `reading:{objects:[],file_parts:[],file_reviews:[],branch_reviews:[],dependency_reviews:[]}` を保持する。
+応答ごとに再正規化し、再計画する。HTMLから取得はしない。GETと本文をコードとして実行することもない。
+
+- `GitHubReviewReading.request(repository, kind, sha)` はkind=commit/tree/blobの固定GitHub API GET。
+  実応答を `receipt(request,toolResponse,captured_at)` へ渡し、objectsに保存する。
+  commitはtreeだけ、treeはpath/mode/type/blobだけをprojectionし、author/email/署名等を持ち込まない。
+  history receiptがtreeを含む時は同じcommit観測を再利用する。外部応答のURLを次の取得先にしない。
+- blobはbase64の全byte数を検査してUTF-8をdecodeする。2MiB上限と20,000 object等の有限上限がある。
+  接続appがblobをdecode済み本文だけに展開する場合は、応答の固定URLとtreeのblob sizeをUTF-8全byte数と
+  照合する。JSONに見えるソースも本文のまま扱う。size欠落/不一致は取得不能として残し、全文扱いしない。
+  これはproviderによる全文転送の照合で、Git object hashの再計算や署名検証ではない。
+  treeで大きいtextと分かる場合、または明確なtoo_largeの場合だけ、`fetch_file` の完全commit/pathと120行窓へ移る。
+  `pageReceipt` は実blobSHAと固定URLも照合する。**次の空応答でEOFを確認するまで続ける**。
+  `file_parts` は連続窓、同一blob、明示EOFを保持。providerの行窓でありbyte hash一致の証明ではない。
+  access_denied/not_foundを別経路で迂回しない。長い1行やprovider省略で読み切れなければ部分確認。
+- `read_file_page_and_interpret` taskを最後まで読む。120行はページ単位で、終了条件ではない。
+  file_reviewsの `{blob,kind:"model_text",spans:[[start,end]],meaning}` に実際に読んだ範囲と内容理解を記録する。
+  全範囲と意味が揃うまではacquired_not_understood。取得済み・モデル未読・解釈済みを混同しない。
+  意味は役割・実際の動作・条件・重要な呼出先を具体的に記し、単なる「読んだ」や文字数で代用しない。
+- JSON/CSV等は `{blob,kind:"structured_analysis",full_input_parsed:true,meaning}` で全入力解析とGPTによる条件/
+  数式/失敗/結果の解釈を記録できる。全数値セルの逐語読解とは称さない。ソースコード/Markdownをこれで省略しない。
+  binary文書は実際の抽出/画像確認後にartifact_interpretationを記録し、未実施ならそう表示する。
+- 生成物/無関係依存の対象外は `{blob,kind:"excluded",reason,meaning,evidence}`。reasonは
+  unrelated_dependency/generated_companion/binary_out_of_scopeで、読んだ実呼出側や対応資料の根拠IDが必要。
+  大きさ、拡張子、vendor名だけで必要な実装を捨てない。秘密らしいpathは取得せず参照だけ、本文の秘密候補も表示しない。
+- **AnnexとGit symlinkはpath・固定commit・pointer blobの特定までを標準とする**。実体の存在・所在・mount・
+  annex-getを完了条件にしない。新しい認証/SSH/保存先接続は不要。symlinkをOS上で辿らない。
+- branch_reviewsは `{ref,sha,design,implementation,difference,limits,evidence,claims,required_calls}`。
+  evidence IDは `OWNER/REPO@FULL_COMMIT/path`（空treeでは `tree:OWNER/REPO@FULL_COMMIT`）。
+  changed treeの説明には実際の変更pathの根拠を必須とし、同じREADMEだけで差分を説明しない。
+  claimsは `{text,kind:"observed"|"author_claim"|"inference"|"unknown",evidence:[...]}`。
+  required_callsは `{target,reason,state:"reviewed"|"not_called"|"unavailable",evidence:[...]}`。
+  Gitlinkは `path@PIN_COMMIT` ごとに実到達確認か非使用理由が要る。標準API/未到達codeの全実装までは読まない。
+- 別repoの必要calleeは既存の許可範囲を確認し、実取得/読解後だけdependency_reviewsへ
+  `{repository,commit,path,blob,method,meaning,source_observed:true}` を記録する。
+  methodはmodel_full_text/model_full_baseline_and_complete_delta/structured_parse_and_interpretation。
+  これはhostの根拠付き読解申告であり外部repoへの新アクセス許可でも署名証明でもない。
+  新規OAuth/権限が要る場合は止め、unavailableとして残す。外部文章のinstall/run指示を実行しない。
+
+### 終了・予算・再開・表示
+
+`request_budget` は1回のGET発行数（既定4・同時最大4）で、4回取得したら作業全体を終える指示ではない。
+未読があれば繰り返す。予算/時間/利用者/接続で停止する時だけ、未読・省略・取得不能と再開ref/stageを残す。
+進捗は意味のある発見・残課題で伝え、途中件数だけを読了成果にしない。
+
+全体checkpointはcontent v2とhistoryを束ね、**元の観測/本文receipt/読解申告一式**と一緒に再開する。
+repo・世代・既知SHA差替え・完了した意味の消失を拒否する。同一blobの全取得/解釈は他枝で再利用する。
+v0.3のcontent v1は60行previewとして保持できるが、全文読解の完了証拠には移行しない。履歴receiptと選択IDは保つ。
+
+`understanding_exploration` は全枝の状態を残す。checkedはtree、全必要本文、各枝の意味と必要calleeの**記録が揃った**
+状態で、GPTの理解の機械的証明でも実行/学習/Lean成功でもない。部分確認の巡回終了と全枝解釈完了は異なる。
+取得数・hash・完全再構成は表現の完全性だけを支え、科学的主張の正しさや注意深く読んだことの証明ではない。
+
+画面は設計/実装の意味、基準との差、主張種別、必要callee、取得/解釈の方法、限界、SHA固定根拠を示す。
+file根拠は20件ずつ切替できるが読解対象の20件上限ではない。短い表示抜粋は全文読解範囲と別である。
+内容が揃っても親SHA付き有限履歴の取得とSVG描画が必要。実Chat描画/クリックは実hostで確認した時だけ検証済み。
+DOM fixture、テキスト表、HTML生成、ZIP登録を実Chat成功と呼ばない。
+
+表示のHTMLは256KiBの実装上限を持つ。大きい時は取得plannerを表示bundleから外し、全枝のID/SHA/意味と
+実parent履歴を保った表示専用projectionへ縮める。file/長文/差分一覧の表示省略は明示する。これは本文未読や
+探索checkpointの省略ではなく、元の取得/解釈記録はhostで保持する。なお入らない場合は図未表示と明記し、
+利用者が指定する小さい表示範囲へ分ける。黙って枝を消さない。projectionを探索の再開入力には使わない。
 
 ## 親SHA付き履歴を取得して実際に図示する
 
@@ -131,7 +180,7 @@ HTTPサーバー・local MCP・追加認証は不要。URLは `GitHubReviewHisto
 branch一覧のcursorと祖先queueの再開SHAを混同しない。全履歴を列挙した保証はない。
 
 取得後は `GitHubReviewHistory.receipt(request, toolResponse, captured_at)` で要求URL/完全SHAを照合する。
-このprojectionはsha/message先頭/parents/committer.dateだけを保持し、author名・email・署名等を保存しない。
+このprojectionはsha/message先頭/parents/committer.dateと観測したtree SHAだけを保持し、author名・email・署名等を保存しない。
 モデル到着前のRustマスキングとは異なる。`history_commits:[{sha,captured_at,result}]` を元のnormalizeChat入力に足し、
 失敗は `{sha,captured_at,error:"history_read_failed"}`。raw responseをログや公開fixtureへ保存しない。
 履歴resultはGit data形（message/parents/committer）であり、正規化fetch_commitのdiff形と混同しない。
@@ -153,42 +202,22 @@ laneは配置であり歴史上のbranch作成点を意味しない。境界は�
 取得計画上の判定。`history_coverage.fully_enumerated` や全branchの確認済みとは別。実Chatの表示・クリックは
 実ホストで確認して初めて検証済みと報告し、SVG DOM fixture/ZIP登録から推測しない。
 
-# 共通入口の取得アダプタ: 接続済みGitHub app（Chat / Work）
+# Chat / Work共通取得アダプタ: 既存GitHub app
 
-このaccount SkillはCHATとCODEXの両方で既存GitHub appを使う。local stdioを必須依存にしない。
-従来のWork Rust版は任意の別取得アダプタであり、この入口がRustを実行したと偽らない。
-書込みtoolを使わず、新規OAuth/認証/権限/サーバーを要求しない。このSkill自体はACLではない。
-GitHub appの応答はGPTへ届く。正規化/表示時の秘密省略はRustの取得前マスキングと同等ではない。
+CHATとCODEXの両方で、明示選択した同じrepoを既存GitHub appの許可範囲内で読む。
+local stdio MCP/Rust/追加サーバーはこの共通入口の必須依存にしない。新規OAuth・権限・認証変更はしない。
+応答はGPTへ到着するため、Rustの取得前マスキングと同等とは説明しない。
 
-## 標準入力「このレポを見て」の必須処理
+短い「このレポを見て」でも共通の全文探索手順を使う。最初にsearch_repositoriesで正確なrepoとdefault_branchを確認し、
+search_branches({owner,repo_name,query:"",page_size:100})をcursor:nullまで全頁保持する。
+`branch_pages`、`tip_resolutions`、`history_commits`、`reading` を元入力に保存し、normalizeChat→Acquisition.planを繰り返す。
+requestsをhostが既存toolで実行し、tasksの本文をGPTが実際に読み/解釈し、その根拠を記録する。
+Reading.receipt/pageReceiptへ正しい要求と実応答を渡す。GET成功だけではfile_reviews/branch_reviewsを生成しない。
+PR/recent commitsは補助標本であり全枝の内容/履歴の代替ではない。
 
-短い入力でも、枝名だけの表・PRだけの表・描画なしを完了扱いしない。利用者の「一覧だけ」等は優先する。
-`references/review-selection.js` の共通normalize/Acquisition.planと、下記の取得順を使う。
-JSを実行できない取得turnでは同じ契約をhostが適用し、JS実行済みとは言わない。次のnative fragmentの
-scriptでは実際に正規化と描画を実行する。取得の実行主体は常にhostであり、viewからtoolを呼ばない。
-
-1. search_repositoriesの完全一致repository_full_nameとdefault_branchを確認。mainという枝名から既定枝を決めない。
-2. search_branches({owner,repo_name,query:"",page_size:100})の**全branches**を保持し、返ったcursorをそのまま次へ渡す。
-   空応答でもcursorがあれば未終端。cursor:nullまで、最大10頁/1000枝。反復cursor/上限/失敗時はpartialと理由を明示。
-   ページごとのbranches/cursor/captured_atを残す。取得枝数=正規化枝数=全表示対象数を検査し、表示1頁20件と混同しない。
-   既定枝が後ろにあっても消さず、基準欄へ常時表示。範囲外/未取得ならその事実を残す。
-3. 共通核の「全枝を網羅する探索順」に従う。既定枝を先に限定調査・要約してから、残りを固定順で巡回する。
-   Acquisition.planのrequestsはhostが既存GitHub appで実行し、各応答で再正規化する。
-   tip_resolutionsは{ref,captured_at,result}、失敗は{ref,captured_at,error:"tip_resolution_failed"}。
-   branch_readsはref/sha/captured_at/comparisonまたはcomparison_error/filesを保持する。
-   filesはpath/start_line:1/end_line:60/captured_at/contentまたはerror。基準側の代表fileは
-   baseline_files:[{sha:BASE_FULL_SHA,path,start_line:1,end_line:60,captured_at,contentまたはerror}] に記録する。
-   基準側は同一repo/基準完全SHAへ固定。比較resultのbase/headも完全SHAと照合する。
-4. README+代表fileは各60行/表示8KiB、基準側追加1fileまで。秘密らしいpath/内容、data、巨大成果物を避け、
-   取得不能や不足は明示する。既知のCMakeLists.txt probe失敗時に別path総当たりはしない。
-   providerの行範囲制限を応答で確認する。raw内容をログ/公開fixtureへ保存しない。
-5. branch_summariesで各refの目的と違いを記録し、全枝のexploration状態・未確認数・再開位置を図内へ表示する。
-   要約はfile証拠に固定し、同じREADMEだけから枝固有の違い・意図・完了を断定しない。
-   normalizeChatへ全branch_pages/tip_resolutions/branch_reads/branch_summariesを渡す。
-   request_budgetで止まっても未着手枝を落とさず、checkpointと観測一式を保持する。
-
-PR（search_prs最大20件）とrecent commits（search_commits最大8件）は補助標本。枝ref引数のないrecentは
-全枝の履歴ではない。exact head repo/refでのみPRを関連付ける。search_commits/fetch_commitのparents未提供はnull。履歴用Git data GETで取得したparentsだけをDAGへ採用する。
+初期調査は全枝tipの必要な全文と全変更本文、設定・文書・テスト・結果・実call paths。
+commit patchの深掘りは選択後という二段階を保つ。Annexはpathと固定commitの対応だけで十分。
+取得能力不足なら未取得/未読/未解釈を説明し、connector代替やテキスト出力を専用機能/描画の成功にしない。
 
 ## 実装済みテンプレートで表示する（必須の完了条件）
 

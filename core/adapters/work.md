@@ -1,3 +1,10 @@
+# Workでの全文読解とRustの能力差
+
+共通GitHub app入口が実際に利用可能なWorkでは、同じReading/Acquisition手順で全文と意味を扱う。
+Rust snapshot/commitだけでは全tree/source全文取得を提供しない。専用MCPの既存allowlistを拡張したり、
+拒否された呼出しをCLI/connectorで迂回しない。利用可能な取得アダプタを明記し、GitHub appが使えなければ
+全文理解は未達と報告する。Rustの履歴観測とChatの原文到着前秘匿能力を混同しない。
+
 # Work取得アダプタ: Rust / 既存gh
 
 専用MCPの `list_repositories` / `repository_metadata` / `repository_snapshot` / `repository_commit` だけを使う。

@@ -13,7 +13,7 @@ HTTPサーバー・local MCP・追加認証は不要。URLは `GitHubReviewHisto
 branch一覧のcursorと祖先queueの再開SHAを混同しない。全履歴を列挙した保証はない。
 
 取得後は `GitHubReviewHistory.receipt(request, toolResponse, captured_at)` で要求URL/完全SHAを照合する。
-このprojectionはsha/message先頭/parents/committer.dateだけを保持し、author名・email・署名等を保存しない。
+このprojectionはsha/message先頭/parents/committer.dateと観測したtree SHAだけを保持し、author名・email・署名等を保存しない。
 モデル到着前のRustマスキングとは異なる。`history_commits:[{sha,captured_at,result}]` を元のnormalizeChat入力に足し、
 失敗は `{sha,captured_at,error:"history_read_failed"}`。raw responseをログや公開fixtureへ保存しない。
 履歴resultはGit data形（message/parents/committer）であり、正規化fetch_commitのdiff形と混同しない。

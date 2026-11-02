@@ -20,7 +20,7 @@ function commitInput() { return { repository: 'example/project', sha: A, capture
 
 test('same schema preserves branch names without invented tips, parents, topology or Rust guarantees', () => {
   const value = core.normalizeChat(input()), s = value.snapshot;
-  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.3.0');
+  assert.equal(value.schema_version, 1); assert.equal(s.review_core.contract_version, '1.4.0');
   assert.equal(s.review_core.adapter, 'chat_github'); assert.equal(s.review_core.capabilities.pre_model_redaction, false);
   assert.equal(s.review_core.capabilities.commit_file_transfer_bounded, false);
   assert.ok(s.branch_overview.items.every((b) => b.tip_sha === null && b.history.commit_shas.length === 0));

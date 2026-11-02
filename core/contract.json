@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "identity": {
     "repository": "validated OWNER/REPO",
     "commit": "full 40/64 hex SHA",
@@ -24,7 +24,12 @@
     "history_commits": 96,
     "history_depth": 12,
     "history_per_branch": 32,
-    "history_boundary_display": 24
+    "history_boundary_display": 24,
+    "reading_file_page_lines": 120,
+    "reading_blob_bytes": 2097152,
+    "reading_objects": 20000,
+    "reading_tree_entries": 100000,
+    "view_bytes": 262144
   },
   "profiles": {
     "rust_gh": {
@@ -58,7 +63,9 @@
     "explicit_question": "feature-detected host bridge or manual copy; never direct network",
     "scope": "user scope and host approvals take precedence",
     "exploration_order": "enumerate inventory first; default branch to terminal bounded review first; remaining exact refs in locale-independent UTF-16 lexical order",
-    "exploration_completion": "every acquired branch has a terminal bounded-review state; partial inventory stays partial; no unread branch silently settled"
+    "exploration_completion": "whole fixed trees and unique text bodies plus model meaning/call-closure attestations; legacy60-line previews, downloads and numeric parsing alone never complete",
+    "annex": "path and full commit reference only; actual payload acquisition is excluded by default",
+    "reading_claim": "model review is an explicit evidence-linked attestation, not mechanically proven comprehension"
   },
   "security_boundary": false,
   "selection_schema": "urn:github-work-inspector:review-observation:1#/$defs/selectionReference"

@@ -30,6 +30,7 @@ jobs:
           node scripts/test-branch-survey.cjs
           node scripts/test-exploration.cjs
           node scripts/test-history.cjs
+          node scripts/test-reading.cjs
           python scripts/test-chat-package.py
       - name: Native selection bridge offline fixtures
         run: node scripts/test-review-selection.cjs

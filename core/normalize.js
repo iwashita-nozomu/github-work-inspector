@@ -74,7 +74,9 @@
     const output = { schema_version: 1, captured_at: captured, ok: !branchError, snapshot: { review_core: core(), repository: { name_with_owner: repository, url: `https://github.com/${repository}`, default_branch: defaultBranch }, atomic: false, partial: !!branchError, inferences: [], branches: { items: branches, coverage, error: branchError && { code: branchError }, captured_at: captured }, branch_overview: { items, baseline: { name: defaultBranch, branch_id: defaultBranch ? id(defaultBranch) : null, tip_sha: tips.get(defaultBranch)?.sha ?? null, observation: { source: defaultBranch ? 'connector_repository_metadata_and_optional_same_ref_compare' : 'default_branch_unavailable', captured_at: tips.get(defaultBranch)?.captured_at ?? captured, error: null } }, branch_coverage: coverage, branch_error: branchError && { code: branchError }, branches_captured_at: captured, pull_coverage: pullCoverage, pull_error: null, pulls_captured_at: captured, history_branch_count: 0, atomic: false, inferences: [] }, dag: { nodes, per_branch: [], outside_window_parents: [], edge_direction: 'child_to_parent', parent_fields_available: false, bounded: true, ordering: 'connector_search_order_not_topology' }, pull_requests: { items: pulls, coverage: pullCoverage, captured_at: captured, error: null } } };
     root.GitHubReviewHistory.decorate(output.snapshot, input);
     root.GitHubReviewSurvey.decorate(output.snapshot, input);
-    output.snapshot.partial ||= !output.snapshot.branch_overview.exploration.all_checked || !output.snapshot.dag.history_coverage.fully_enumerated;
+    root.GitHubReviewReading.decorate(output.snapshot, input);
+    output.snapshot.partial ||= !output.snapshot.dag.history_coverage.fully_enumerated;
+    output.snapshot.partial ||= !output.snapshot.branch_overview.understanding_exploration.complete;
     return output;
   }
   function normalizeChatCommit(input) {
@@ -106,5 +108,5 @@
     }
     return { schema_version: 1, captured_at: captured, ok: true, commit_details: { review_core: core(), repository, mode: chosen ? 'patch' : 'files', commit: { sha: reference, url: `https://github.com/${repository}/commit/${reference}`, subject: clean(typeof c.message === 'string' ? c.message.split('\n')[0] : ''), parents: null, comparison: { kind: 'connector_commit_parent_unspecified', parent_sha: null, per_parent_comparison_performed: false } }, files, patch, coverage: { fully_enumerated: false, has_more: null, stopped_reason: 'connector_provider_not_bounded', provider_file_only_transfer: false }, source_transfer: 'Raw whole-commit payload may already have reached the host; filtering here limits display only.', inferences: [] } };
   }
-  root.GitHubReviewCore = Object.freeze({ contract, normalizeChat, normalizeChatCommit, validPath, validRef });
+  root.GitHubReviewCore = Object.freeze({ contract, normalizeChat, normalizeChatCommit, validPath, validRef, validRepository: (v) => { try { return repo(v) === v; } catch (_) { return false; } } });
 })(globalThis);

@@ -23,9 +23,13 @@ def outputs():
     lock['core_digest'] = digest
     marker = f'<!-- Generated from core/; edit the authored source. Core digest: {digest} -->\n'
     contract = (ROOT/'core/contract.json').read_text(encoding='utf-8')
+    # The view only needs these modules; full acquisition stays available to the host.
+    # buildFragment strips the marked tail, so a native fragment contains no unused planner.
     bundle = ('/* Generated from core/; consistency digest: ' + digest + ' */\n'
               + 'globalThis.GitHubReviewCoreContract = Object.freeze(' + contract.strip() + ');\n'
-              + (ROOT/'core/normalize.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/survey.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history-graph.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/selection.js').read_text(encoding='utf-8') + '\n' + (ROOT/'core/overview.js').read_text(encoding='utf-8'))
+              + '\n'.join((ROOT/f'core/{name}.js').read_text(encoding='utf-8') for name in ['normalize', 'survey', 'history-graph', 'selection', 'overview'])
+              + '\n/*__GWI_ACQUISITION_ONLY__*/\n'
+              + '\n'.join((ROOT/f'core/{name}.js').read_text(encoding='utf-8') for name in ['exploration', 'reading', 'history']))
     common = (ROOT/'core/workflow.md').read_text(encoding='utf-8') + '\n' + (ROOT/'core/exploration.md').read_text(encoding='utf-8') + '\n' + (ROOT/'core/history.md').read_text(encoding='utf-8')
     work = (ROOT/'core/adapters/work.md').read_text(encoding='utf-8')
     chat = (ROOT/'core/adapters/chat.md').read_text(encoding='utf-8')

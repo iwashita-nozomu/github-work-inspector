@@ -104,6 +104,9 @@
                   },
                   "content_review": {
                     "$ref": "#/$defs/contentReview"
+                  },
+                  "understanding": {
+                    "$ref": "#/$defs/wholeReading"
                   }
                 }
               }
@@ -356,7 +359,7 @@
       ],
       "properties": {
         "contract_version": {
-          "const": "1.0.0"
+          "const": "1.4.0"
         },
         "adapter": {
           "enum": [
@@ -815,6 +818,52 @@
         },
         "inventory_frozen": {
           "type": "boolean"
+        }
+      }
+    },
+    "wholeReading": {
+      "type": "object",
+      "required": [
+        "state",
+        "tree_complete",
+        "files",
+        "differences",
+        "summary",
+        "complete",
+        "model_review_is_attestation_not_proof"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pending",
+            "partial",
+            "reviewed"
+          ]
+        },
+        "tree_complete": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "model_review_is_attestation_not_proof": {
+          "const": true
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 100000
+        },
+        "differences": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": [
+            "object",
+            "null"
+          ]
         }
       }
     }

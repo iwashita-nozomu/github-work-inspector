@@ -21,7 +21,7 @@
     if (sourceURL !== q.args.url || typeof d.content !== 'string' || d.content.length>1024*1024) invalid();
     let parsed; try { parsed=JSON.parse(d.content); } catch (_) { invalid(); }
     if (hash(parsed.sha)!==expected[2]) invalid();
-    return {sha:expected[2],captured_at,result:{sha:hash(parsed.sha),message:clean(parsed.message),parents:Array.isArray(parsed.parents)?parsed.parents.map(p=>({sha:hash(p.sha)})):null,committer:{date:date(parsed.committer?.date)}}};
+    return {sha:expected[2],captured_at,result:{sha:hash(parsed.sha),message:clean(parsed.message),parents:Array.isArray(parsed.parents)?parsed.parents.map(p=>({sha:hash(p.sha)})):null,...(parsed.tree?{tree:{sha:hash(parsed.tree.sha)}}:{}),committer:{date:date(parsed.committer?.date)}}};
   }
   function decorate(snapshot, input) {
     const records=input.history_commits||[], L=limits(input.history_limits), observed=new Map(), failed=new Map();
@@ -81,16 +81,20 @@
     if(saved && saved.version!==1)invalid();
     const legacy=saved&&!saved.content&&saved.repository?saved:null;
     if(saved&&!legacy&&!saved.content)invalid();
-    const contentOptions={...options,checkpoint:legacy??saved?.content};delete contentOptions.in_flight_keys;
-    const content=root.GitHubReviewSurvey.plan(snapshot,contentOptions),history=plan(snapshot,{request_budget:options.request_budget,checkpoint:options.checkpoint?.history});
+    const oldContent=legacy??saved?.content;
+    // Preview receipts/history remain reusable; a v1 60-line checkpoint cannot attest whole-source reading.
+    const contentOptions={...options,checkpoint:oldContent?.version===1?undefined:oldContent};delete contentOptions.in_flight_keys;
+    const content=root.GitHubReviewReading.plan(snapshot,contentOptions),history=plan(snapshot,{request_budget:options.request_budget,checkpoint:options.checkpoint?.history});
     const out={...content,checkpoint:{version:1,content:content.checkpoint,history:history.checkpoint},workflow_complete:false,history_coverage:history.coverage};
-    if(content.phase==='enumerate_all_pages'||content.paused)return out;
+    if(oldContent?.version===1)out.content_checkpoint_migration='v1_preview_does_not_satisfy_full_reading;metadata_and_history_retained';
+    function result(){const running=options.in_flight_keys||[];if(!Array.isArray(running)||running.length>4||running.some(k=>!out.requests.some(q=>q.key===k)))invalid();out.in_flight_keys=running;out.requests=out.requests.filter(q=>!running.includes(q.key));if(running.length&&!out.requests.length&&!out.paused)out.phase='waiting_for_receipts';return out;}
+    if(content.phase==='enumerate_all_pages'||content.paused)return result();
     const b=snapshot.branch_overview.items.find(b=>b.name===content.target_ref),known=new Set(snapshot.dag.history_records);
     if(b?.tip_sha&&!known.has(b.tip_sha)&&history.coverage.attempted<history.coverage.limits.max_commits){
-      out.phase=options.request_budget===0?'history_paused':'read_branch_tip_history';out.paused=options.request_budget===0;out.tasks=[];out.requests=(options.request_budget===0)?[]:[request(snapshot.repository.name_with_owner,b.tip_sha)];return out;
+      out.phase=options.request_budget===0?'history_paused':'read_branch_tip_history';out.paused=options.request_budget===0;out.tasks=[];out.requests=(options.request_budget===0)?[]:[request(snapshot.repository.name_with_owner,b.tip_sha)];return result();
     }
     if(content.progress.finished_known_targets){out.phase=history.phase;out.requests=history.requests;out.tasks=[];out.known_scope_finished=history.coverage.bounded_finished;out.history_renderable=snapshot.dag.nodes.some(n=>Array.isArray(n.parents));out.workflow_complete=content.progress.complete&&history.coverage.bounded_finished&&out.history_renderable;if(!out.history_renderable&&history.coverage.bounded_finished)out.phase='history_unavailable';}
-    return out;
+    return result();
   }
   root.GitHubReviewHistory=Object.freeze({request,receipt,decorate,plan,limits});
   root.GitHubReviewAcquisition=Object.freeze({plan:acquire});
