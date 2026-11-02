@@ -20,7 +20,7 @@
       "interface": {
         "displayName": "GitHub Inspector",
         "shortDescription": "Git branches with evidence",
-        "longDescription": "One GitHub-app entry for Chat and Work. Reads fixed branch trees and source bodies, separates acquisition from model interpretation, and renders branch meaning with observed history and evidence selection. Annex is path/commit reference only. Native host display must be verified.",
+        "longDescription": "One GitHub-app entry for Chat and Work. Enumerates branches, reads bounded revision-pinned content and renders a searchable, paginated overview with evidence selection. Rust remains a separate optional adapter; native host display must be verified.",
         "developerName": "iwashita-nozomu",
         "category": "Productivity",
         "capabilities": [],

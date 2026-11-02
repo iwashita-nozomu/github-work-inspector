@@ -4,6 +4,7 @@
 No account registration, network, release upload, local install or auth mutation.
 """
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -13,6 +14,24 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = 'github-work-inspector-chat'
+
+
+def account_manifest(candidate, previous):
+    """App-backed skill updates may bump version, never App-owned presentation/config."""
+    if previous.get('name') != NAME or previous.get('extensions', {}).get('com.openai', {}).get('apps') != './.app.json':
+        raise ValueError('Existing account manifest identity/dependency mismatch')
+    old_interface = previous['extensions']['com.openai']['interface']
+    if old_interface.get('defaultPrompt') != candidate['extensions']['com.openai']['interface']['defaultPrompt']:
+        raise ValueError('Preserve the existing defaultPrompt exactly')
+    effective = copy.deepcopy(previous)
+    effective['version'] = candidate['version']
+    return effective
+
+
+def codex_overlay(manifest):
+    overlay = {key: value for key, value in manifest.items() if key not in ['$schema', 'extensions']}
+    overlay.update({'interface': manifest['extensions']['com.openai']['interface'], 'apps': './.app.json', 'skills': './skills'})
+    return overlay
 
 
 def build(output, github_app_id, source_sha, base_manifest=None):
@@ -38,21 +57,9 @@ def build(output, github_app_id, source_sha, base_manifest=None):
     assert not any(name in entries for name in ['mcp.json', '.mcp.json'])
     if base_manifest is not None:
         previous = json.loads(base_manifest.read_text(encoding='utf-8'))
-        if previous.get('name') != NAME or previous.get('extensions', {}).get('com.openai', {}).get('apps') != './.app.json':
-            raise ValueError('Existing account manifest identity/dependency mismatch')
-        old_interface = previous['extensions']['com.openai']['interface']
-        if old_interface.get('defaultPrompt') != manifest['extensions']['com.openai']['interface']['defaultPrompt']:
-            raise ValueError('Preserve the existing defaultPrompt exactly')
-        # Preserve account-owned author/contact/presentation fields outside the requested change.
-        effective = previous
-        effective['version'] = manifest['version']
-        effective['description'] = manifest['description']
-        for field in ['displayName', 'shortDescription', 'longDescription']:
-            old_interface[field] = manifest['extensions']['com.openai']['interface'][field]
-        manifest = effective
+        manifest = account_manifest(manifest, previous)
         entries['plugin.json'] = (json.dumps(manifest, indent=2, ensure_ascii=False)+'\n').encode()
-    overlay = {key: value for key, value in manifest.items() if key not in ['$schema', 'extensions']}
-    overlay.update({'interface': manifest['extensions']['com.openai']['interface'], 'apps': './.app.json', 'skills': './skills'})
+    overlay = codex_overlay(manifest)
     entries['.codex-plugin/plugin.json'] = (json.dumps(overlay, indent=2, ensure_ascii=False)+'\n').encode()
     entries['.app.json'] = (json.dumps({'apps': {'github': {'id': github_app_id}}}, indent=2)+'\n').encode()
     for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:
