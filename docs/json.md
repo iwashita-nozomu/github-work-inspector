@@ -65,6 +65,20 @@ Text may be redacted/truncated; it is not suitable for reconstructing original
 content. New additive fields may appear within v1. Breaking field/type/semantic
 changes require a new schema version.
 
+## Shared Work/Chat review core (development)
+
+Snapshots and selected-commit observations add `review_core` with `contract_version`,
+`adapter` and the capability profile authored in `core/contract.json`. The shared
+[observation/selection schema](core-observation.schema.json) is additive to v1;
+it does not replace repository-list, metadata, installation or error envelopes.
+Work uses `rust_gh`. Chat's reference normalizer uses `chat_github`, with nullable
+tips/parents and explicit lack of file-transfer bounds/pre-model redaction.
+`parents:null` is unknown; `parents:[]` is an observed zero-parent commit.
+Chat file identity is immutable SHA plus observed exact path, not an invented
+Rust file_id. The shared selection code distinguishes adapters and rejects stale
+view references or cross-adapter locators. See `CORE-LOCK.json` for generated
+source consistency; this is not a signature or an execution guarantee.
+
 ## Branch overview evidence (additive v1)
 
 `branch_overview` contains `items`, `baseline`, independent branch/PR coverage,

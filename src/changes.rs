@@ -306,7 +306,7 @@ pub fn inspect(
     }
     let partial = error.is_some() || (options.mode == Mode::Patch && files.is_empty());
     Ok((
-        json!({"repository":repo.0,"commit":commit,"files":files,"patch":selected_patch,
+        json!({"review_core":crate::review::rust_provenance(),"repository":repo.0,"commit":commit,"files":files,"patch":selected_patch,
         "mode":if options.mode==Mode::Patch {"patch"}else{"files"},"coverage":{"start_index":options.file_index,"returned":files.len(),"requests":attempts,"successful_requests":observed.len(),"request_observed_at":observed,
         "has_more":more,"next_file_index":if more==Some(true){Some(options.file_index+files.len())}else{None},"complete_file_listing":options.file_index==0 && more==Some(false) && !partial && !at_cap,
         "stopped_reason":stopped,"api_file_cap":FILE_CAP,"total_files":null},"error":error,"partial":partial,"inferences":[],

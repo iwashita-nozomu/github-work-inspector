@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "github-work-inspector-chat",
+  "version": "0.4.0",
+  "description": "A private shared Chat and Work entry for evidence-backed GitHub branch content review.",
+  "author": {
+    "name": "iwashita-nozomu"
+  },
+  "homepage": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "repository": "https://github.com/iwashita-nozomu/github-work-inspector",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "repository",
+    "review"
+  ],
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "displayName": "GitHub Inspector",
+        "shortDescription": "Git branches with evidence",
+        "longDescription": "One GitHub-app entry for Chat and Work. Enumerates branches, reads bounded revision-pinned content and renders a searchable, paginated overview with evidence selection. Rust remains a separate optional adapter; native host display must be verified.",
+        "developerName": "iwashita-nozomu",
+        "category": "Productivity",
+        "capabilities": [],
+        "defaultPrompt": "このレポを見て"
+      }
+    }
+  }
+}

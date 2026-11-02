@@ -1,0 +1,871 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:github-work-inspector:review-observation:1",
+  "title": "Shared review observation; additive to the v1 tool envelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "captured_at",
+    "ok"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "review_core",
+        "repository",
+        "branch_overview",
+        "dag",
+        "atomic",
+        "inferences"
+      ],
+      "properties": {
+        "review_core": {
+          "$ref": "#/$defs/provenance"
+        },
+        "repository": {
+          "type": "object",
+          "required": [
+            "name_with_owner",
+            "default_branch"
+          ],
+          "properties": {
+            "name_with_owner": {
+              "type": "string"
+            },
+            "default_branch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "atomic": {
+          "const": false
+        },
+        "inferences": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "branch_overview": {
+          "type": "object",
+          "required": [
+            "items",
+            "baseline",
+            "branch_coverage",
+            "pull_coverage"
+          ],
+          "properties": {
+            "items": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "type": "object",
+                "required": [
+                  "branch_id",
+                  "name",
+                  "tip_sha",
+                  "history",
+                  "comparison",
+                  "related_pull_requests"
+                ],
+                "properties": {
+                  "branch_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "tip_sha": {
+                    "$ref": "#/$defs/nullableSha"
+                  },
+                  "history": {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "comparison": {
+                    "type": "object"
+                  },
+                  "related_pull_requests": {
+                    "type": "array"
+                  },
+                  "content_review": {
+                    "$ref": "#/$defs/contentReview"
+                  },
+                  "understanding": {
+                    "$ref": "#/$defs/wholeReading"
+                  }
+                }
+              }
+            },
+            "baseline": {
+              "type": "object",
+              "required": [
+                "name",
+                "tip_sha"
+              ],
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tip_sha": {
+                  "$ref": "#/$defs/nullableSha"
+                }
+              }
+            },
+            "branch_coverage": {
+              "$ref": "#/$defs/coverage"
+            },
+            "pull_coverage": {
+              "$ref": "#/$defs/coverage"
+            },
+            "exploration": {
+              "$ref": "#/$defs/exploration"
+            }
+          }
+        },
+        "dag": {
+          "type": "object",
+          "required": [
+            "nodes",
+            "edge_direction",
+            "bounded"
+          ],
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "sha",
+                  "parents"
+                ],
+                "properties": {
+                  "sha": {
+                    "$ref": "#/$defs/sha"
+                  },
+                  "parents": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/sha"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "edge_direction": {
+              "const": "child_to_parent"
+            },
+            "bounded": {
+              "const": true
+            },
+            "parent_fields_available": {
+              "type": "boolean"
+            },
+            "history_coverage": {
+              "type": "object",
+              "required": [
+                "limits",
+                "attempted",
+                "observed",
+                "failed",
+                "pending",
+                "bounded_finished",
+                "fully_enumerated",
+                "pagination",
+                "atomic"
+              ],
+              "properties": {
+                "atomic": {
+                  "const": false
+                },
+                "bounded_finished": {
+                  "type": "boolean"
+                },
+                "fully_enumerated": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "per_branch": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "type": "object",
+                "required": [
+                  "branch",
+                  "tip_sha",
+                  "commit_shas",
+                  "coverage"
+                ],
+                "properties": {
+                  "commit_shas": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "$ref": "#/$defs/sha"
+                    }
+                  },
+                  "tip_sha": {
+                    "$ref": "#/$defs/nullableSha"
+                  }
+                }
+              }
+            },
+            "outside_window_parents": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    },
+    "commit_details": {
+      "type": "object",
+      "required": [
+        "review_core",
+        "repository",
+        "commit",
+        "files",
+        "patch",
+        "coverage",
+        "inferences"
+      ],
+      "properties": {
+        "review_core": {
+          "$ref": "#/$defs/provenance"
+        },
+        "commit": {
+          "type": "object",
+          "required": [
+            "sha",
+            "parents"
+          ],
+          "properties": {
+            "sha": {
+              "$ref": "#/$defs/sha"
+            },
+            "parents": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/sha"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "files": {
+          "type": "array"
+        },
+        "patch": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "coverage": {
+          "type": "object"
+        },
+        "inferences": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "snapshot"
+      ]
+    },
+    {
+      "required": [
+        "commit_details"
+      ]
+    }
+  ],
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$"
+    },
+    "nullableSha": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "fully_enumerated",
+        "has_more",
+        "stopped_reason"
+      ],
+      "properties": {
+        "fully_enumerated": {
+          "type": "boolean"
+        },
+        "has_more": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "stopped_reason": {
+          "type": "string"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "adapter",
+        "capabilities"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.4.0"
+        },
+        "adapter": {
+          "enum": [
+            "rust_gh",
+            "chat_github"
+          ]
+        },
+        "capabilities": {
+          "type": "object",
+          "required": [
+            "runtime",
+            "observed_parent_fields",
+            "branch_tip_sha_in_list",
+            "default_branch_metadata",
+            "commit_file_transfer_bounded",
+            "pre_model_redaction",
+            "native_js_required_for_interaction"
+          ],
+          "properties": {
+            "runtime": {
+              "type": "string"
+            },
+            "observed_parent_fields": {
+              "type": "boolean"
+            },
+            "branch_tip_sha_in_list": {
+              "type": "boolean"
+            },
+            "default_branch_metadata": {
+              "type": "boolean"
+            },
+            "commit_file_transfer_bounded": {
+              "type": "boolean"
+            },
+            "pre_model_redaction": {
+              "type": "boolean"
+            },
+            "native_js_required_for_interaction": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "selectionReference": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "source_adapter",
+        "view_id",
+        "selection"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "source_adapter": {
+          "enum": [
+            "rust_gh",
+            "chat_github"
+          ]
+        },
+        "view_id": {
+          "type": "string"
+        },
+        "selection": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/commitSelection"
+            },
+            {
+              "$ref": "#/$defs/branchSelection"
+            },
+            {
+              "$ref": "#/$defs/workFileSelection"
+            },
+            {
+              "$ref": "#/$defs/chatFileSelection"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_adapter": {
+                "const": "rust_gh"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "selection": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/$defs/commitSelection"
+                  },
+                  {
+                    "$ref": "#/$defs/branchSelection"
+                  },
+                  {
+                    "$ref": "#/$defs/workFileSelection"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_adapter": {
+                "const": "chat_github"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "selection": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/$defs/commitSelection"
+                  },
+                  {
+                    "$ref": "#/$defs/branchSelection"
+                  },
+                  {
+                    "$ref": "#/$defs/chatFileSelection"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "commitSelection": {
+      "type": "object",
+      "required": [
+        "id",
+        "repository",
+        "kind",
+        "sha"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "kind": {
+          "const": "commit"
+        }
+      },
+      "additionalProperties": false
+    },
+    "branchSelection": {
+      "type": "object",
+      "required": [
+        "id",
+        "repository",
+        "kind",
+        "sha",
+        "branch_ref"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "sha": {
+          "$ref": "#/$defs/nullableSha"
+        },
+        "kind": {
+          "const": "branch"
+        },
+        "branch_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "additionalProperties": false
+    },
+    "workFileSelection": {
+      "type": "object",
+      "required": [
+        "id",
+        "repository",
+        "kind",
+        "sha",
+        "file_id",
+        "file_index"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "kind": {
+          "const": "file"
+        },
+        "file_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "file_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2999
+        }
+      },
+      "additionalProperties": false
+    },
+    "chatFileSelection": {
+      "type": "object",
+      "required": [
+        "id",
+        "repository",
+        "kind",
+        "sha",
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "sha": {
+          "$ref": "#/$defs/sha"
+        },
+        "kind": {
+          "const": "file"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "additionalProperties": false
+    },
+    "contentEvidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "path",
+        "sha",
+        "captured_at",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "state": {
+          "enum": [
+            "read",
+            "empty",
+            "unavailable",
+            "omitted_sensitive"
+          ]
+        },
+        "excerpt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "pre_model_redaction": {
+          "const": false
+        }
+      }
+    },
+    "contentReview": {
+      "type": "object",
+      "required": [
+        "state",
+        "evidence",
+        "comparison",
+        "scope"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "unresolved",
+            "unread",
+            "partial",
+            "inspected",
+            "unavailable"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/contentEvidence"
+          }
+        },
+        "comparison": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "scope": {
+          "const": "bounded_readme_and_one_representative_file_not_full_branch_audit"
+        },
+        "delta": {
+          "type": "object",
+          "required": [
+            "state",
+            "representative_path",
+            "baseline_sha",
+            "evidence",
+            "scope"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "pending",
+                "recorded",
+                "insufficient"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "exploration": {
+      "type": "object",
+      "required": [
+        "order",
+        "rows",
+        "counts",
+        "inventory_complete",
+        "finished_known_targets",
+        "complete",
+        "all_checked",
+        "atomic"
+      ],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "required": [
+              "ref",
+              "sha",
+              "state",
+              "terminal",
+              "stage"
+            ],
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_started",
+                  "in_progress",
+                  "checked",
+                  "partial",
+                  "unavailable"
+                ]
+              },
+              "terminal": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "counts": {
+          "type": "object",
+          "required": [
+            "acquired",
+            "processed",
+            "remaining",
+            "checked",
+            "not_confirmed"
+          ]
+        },
+        "atomic": {
+          "const": false
+        }
+      }
+    },
+    "explorationCheckpoint": {
+      "type": "object",
+      "required": [
+        "version",
+        "requires_observations_snapshot",
+        "repository",
+        "captured_at",
+        "inventory_frozen",
+        "ordered_refs",
+        "pinned_tips",
+        "baseline_sha",
+        "resume_ref",
+        "resume_stage",
+        "processed_refs"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "requires_observations_snapshot": {
+          "const": true
+        },
+        "ordered_refs": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string"
+          }
+        },
+        "pinned_tips": {
+          "type": "array",
+          "maxItems": 1000
+        },
+        "inventory_frozen": {
+          "type": "boolean"
+        }
+      }
+    },
+    "wholeReading": {
+      "type": "object",
+      "required": [
+        "state",
+        "tree_complete",
+        "files",
+        "differences",
+        "summary",
+        "complete",
+        "model_review_is_attestation_not_proof"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pending",
+            "partial",
+            "reviewed"
+          ]
+        },
+        "tree_complete": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "model_review_is_attestation_not_proof": {
+          "const": true
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 100000
+        },
+        "differences": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

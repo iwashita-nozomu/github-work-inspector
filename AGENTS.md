@@ -4,6 +4,13 @@ Keep this project a Rust CLI and local stdio MCP plugin for explicitly requested
 repository inspection using existing `gh` authentication. Support bounded branch
 and commit DAG snapshots, issues, pull requests, and CI observations.
 
+The authorized Chat account companion uses the already-connected GitHub app.
+Keep its acquisition/host adapter separate from Rust execution, while generating
+both hosts' workflow, schema and view assets from core/. Do not claim Rust's
+pre-model redaction or file-transfer bounds apply to Chat connector responses.
+Account registration, Mac configuration changes and public releases are separate
+from preparing a source PR and private account package.
+
 - Validate `OWNER/REPO` before invoking `gh`. Use an argument array, no shell,
   a fixed host, a fixed GET endpoint, and a finite timeout.
 - Return the versioned JSON envelope for results and errors. Do not expose raw
